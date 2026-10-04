@@ -12,11 +12,11 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
+    "@inneranimalmedia/agentsam-brand": "^2.6.11",
+    "@inneranimalmedia/agentsam-campaign": "^2.6.11",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "hono": "^4.0.0",
-    "zod": "^3.23.0",
-    "@inneranimalmedia/agentsam-brand": "file:../agentsam-sdk/packages/agentsam-brand",
-    "@inneranimalmedia/agentsam-campaign": "file:../agentsam-sdk/packages/agentsam-campaign"
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
