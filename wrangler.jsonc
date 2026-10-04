@@ -7,8 +7,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "agentsam-plugin-public",
-      "database_id": "REPLACE_WITH_PUBLIC_D1_DATABASE_ID",
+      "database_name": "agentsam",
+      "database_id": "455232e0-1726-4bd0-a03a-d0d25f6c4180",
       "migrations_dir": "migrations/d1"
     }
   ],
