@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "agentsam-plugin-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-04",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "PUBLIC_DB",
+      "database_name": "agentsam-plugin-public",
+      "database_id": "REPLACE_WITH_PUBLIC_D1_DATABASE_ID",
+      "migrations_dir": "migrations/d1"
+    }
+  ],
+  "vars": {
+    "SERVICE_NAME": "agentsam-plugin-mcp",
+    "SERVICE_ENV": "development"
+  }
+}

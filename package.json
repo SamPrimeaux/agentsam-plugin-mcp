@@ -1,0 +1,27 @@
+{
+  "name": "@inneranimalmedia/agentsam-plugin-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Public least-privilege MCP capability plane for installable AgentSam plugins.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "hono": "^4.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "wrangler": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
