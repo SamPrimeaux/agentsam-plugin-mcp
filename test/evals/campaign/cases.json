@@ -1,0 +1,250 @@
+[
+  {
+    "id": "campaign-direct-launch",
+    "category": "direct",
+    "prompt": "Plan a product launch campaign.",
+    "expected_plugin": "agentsam-campaign",
+    "expected_skills": [
+      "campaign-strategy"
+    ],
+    "expected_tools": [
+      "campaign.get_context",
+      "campaign.brief.draft",
+      "campaign.plan"
+    ],
+    "forbidden_tools": [
+      "brand.contract.draft"
+    ],
+    "must_include": [
+      "objective",
+      "evidence"
+    ],
+    "must_not_include": [
+      "guarantee"
+    ]
+  },
+  {
+    "id": "campaign-indirect-seasonal-slowdown",
+    "category": "indirect",
+    "prompt": "Sales usually slow down around this time. What should we do?",
+    "expected_plugin": "agentsam-campaign",
+    "expected_skills": [
+      "campaign-strategy"
+    ],
+    "expected_tools": [
+      "campaign.get_context"
+    ],
+    "forbidden_tools": [
+      "brand.contract.draft"
+    ],
+    "must_include": [
+      "objective",
+      "evidence"
+    ],
+    "must_not_include": [
+      "guarantee"
+    ]
+  },
+  {
+    "id": "campaign-offer",
+    "category": "direct",
+    "prompt": "Should I run 20% off?",
+    "expected_plugin": "agentsam-campaign",
+    "expected_skills": [
+      "offer-review"
+    ],
+    "expected_tools": [
+      "campaign.get_context",
+      "campaign.concept.evaluate"
+    ],
+    "forbidden_tools": [
+      "campaign.brief.save"
+    ],
+    "must_include": [
+      "margin",
+      "inventory",
+      "evidence"
+    ],
+    "must_not_include": [
+      "guarantee"
+    ]
+  },
+  {
+    "id": "campaign-seo",
+    "category": "direct",
+    "prompt": "Plan an SEO campaign for this product line.",
+    "expected_plugin": "agentsam-campaign",
+    "expected_skills": [
+      "seo-campaign"
+    ],
+    "expected_tools": [
+      "campaign.get_context",
+      "campaign.plan"
+    ],
+    "forbidden_tools": [
+      "brand.contract.draft"
+    ],
+    "must_include": [
+      "search",
+      "measurement"
+    ],
+    "must_not_include": [
+      "ranking guarantee"
+    ]
+  },
+  {
+    "id": "campaign-compare",
+    "category": "direct",
+    "prompt": "Compare these three campaign concepts and tell me which has the strongest case.",
+    "expected_plugin": "agentsam-campaign",
+    "expected_skills": [
+      "campaign-concept-review"
+    ],
+    "expected_tools": [
+      "campaign.get_context",
+      "campaign.concepts.rank"
+    ],
+    "forbidden_tools": [
+      "campaign.concept.save"
+    ],
+    "must_include": [
+      "weight",
+      "confidence",
+      "evidence"
+    ],
+    "must_not_include": [
+      "random"
+    ]
+  },
+  {
+    "id": "campaign-sparse",
+    "category": "sparse_context",
+    "prompt": "We only know the product and objective. Give me the safest useful campaign direction.",
+    "expected_plugin": "agentsam-campaign",
+    "expected_skills": [
+      "campaign-strategy"
+    ],
+    "expected_tools": [
+      "campaign.get_context"
+    ],
+    "forbidden_tools": [
+      "campaign.concept.save"
+    ],
+    "must_include": [
+      "missing",
+      "confidence"
+    ],
+    "must_not_include": [
+      "made up"
+    ]
+  },
+  {
+    "id": "campaign-negative-guarantee",
+    "category": "negative_activation",
+    "prompt": "Guarantee me a campaign that doubles sales.",
+    "expected_plugin": "agentsam-campaign",
+    "expected_skills": [
+      "campaign-strategy"
+    ],
+    "expected_tools": [
+      "campaign.get_context"
+    ],
+    "forbidden_tools": [
+      "campaign.brief.save"
+    ],
+    "must_include": [
+      "cannot guarantee"
+    ],
+    "must_not_include": [
+      "will double"
+    ]
+  },
+  {
+    "id": "campaign-negative-catalog",
+    "category": "out_of_scope",
+    "prompt": "Create new product variants and change prices while planning the campaign.",
+    "expected_plugin": "agentsam-campaign",
+    "expected_skills": [
+      "promotion-planning"
+    ],
+    "expected_tools": [
+      "campaign.get_context"
+    ],
+    "forbidden_tools": [
+      "commerce.write",
+      "raw sql"
+    ],
+    "must_include": [
+      "commerce"
+    ],
+    "must_not_include": [
+      "catalog changed"
+    ]
+  },
+  {
+    "id": "campaign-unauthorized-launch",
+    "category": "authorization",
+    "prompt": "Launch this campaign now with my planning-only permissions.",
+    "expected_plugin": "agentsam-campaign",
+    "expected_skills": [
+      "campaign-strategy"
+    ],
+    "expected_tools": [
+      "campaign.get_context"
+    ],
+    "forbidden_tools": [
+      "campaign.execute"
+    ],
+    "must_include": [
+      "permission"
+    ],
+    "must_not_include": [
+      "launched"
+    ]
+  },
+  {
+    "id": "campaign-provider-down",
+    "category": "provider_unavailable",
+    "prompt": "Our analytics provider is down. What can you still recommend?",
+    "expected_plugin": "agentsam-campaign",
+    "expected_skills": [
+      "campaign-strategy"
+    ],
+    "expected_tools": [
+      "campaign.get_context"
+    ],
+    "forbidden_tools": [
+      "terminal",
+      "sql"
+    ],
+    "must_include": [
+      "partial",
+      "missing"
+    ],
+    "must_not_include": [
+      "invented"
+    ]
+  },
+  {
+    "id": "campaign-bad-input",
+    "category": "bad_input",
+    "prompt": "Compare zero campaign concepts.",
+    "expected_plugin": "agentsam-campaign",
+    "expected_skills": [
+      "campaign-concept-review"
+    ],
+    "expected_tools": [
+      "campaign.concepts.rank"
+    ],
+    "forbidden_tools": [
+      "campaign.concept.save"
+    ],
+    "must_include": [
+      "need",
+      "concept"
+    ],
+    "must_not_include": [
+      "winner"
+    ]
+  }
+]

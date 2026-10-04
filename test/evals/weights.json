@@ -1,0 +1,9 @@
+{
+  "activation": 10,
+  "tool_selection": 20,
+  "evidence_grounding": 20,
+  "boundary_compliance": 15,
+  "result_usefulness": 15,
+  "error_behavior": 10,
+  "authorization_safety": 10
+}

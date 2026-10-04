@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import app from "../src/index";
-import { PUBLIC_TOOL_CATALOG } from "../src/mcp/catalog";
+import {
+  BRAND_TOOL_CATALOG,
+  CAMPAIGN_TOOL_CATALOG,
+  PUBLIC_TOOL_CATALOG
+} from "../src/mcp/catalog";
 
 const env = {
   DB: {} as D1Database,
@@ -8,9 +12,9 @@ const env = {
   SERVICE_ENV: "test"
 };
 
-async function rpc(method: string, params?: unknown, id = 1) {
+async function rpc(path: string, method: string, params?: unknown, id = 1) {
   return app.request(
-    "/mcp",
+    path,
     {
       method: "POST",
       headers: {
@@ -28,9 +32,16 @@ async function rpc(method: string, params?: unknown, id = 1) {
   );
 }
 
+async function listed(path: string) {
+  const response = await rpc(path, "tools/list");
+  expect(response.status).toBe(200);
+  const body = await response.json() as any;
+  return body.result?.tools ?? [];
+}
+
 describe("public MCP transport", () => {
   it("initializes through Streamable HTTP", async () => {
-    const response = await rpc("initialize", {
+    const response = await rpc("/mcp", "initialize", {
       protocolVersion: "2025-06-18",
       capabilities: {},
       clientInfo: { name: "agentsam-plugin-mcp-test", version: "1.0.0" }
@@ -43,20 +54,40 @@ describe("public MCP transport", () => {
     expect(body.result?.capabilities?.tools).toBeDefined();
   });
 
-  it("lists only the explicit public tool catalog", async () => {
-    const response = await rpc("tools/list");
-    expect(response.status).toBe(200);
-
-    const body = await response.json() as any;
-    const names = (body.result?.tools ?? []).map((tool: any) => tool.name).sort();
+  it("lists only the explicit combined public catalog with schemas and auth metadata", async () => {
+    const tools = await listed("/mcp");
+    const names = tools.map((tool: any) => tool.name).sort();
     const expected = PUBLIC_TOOL_CATALOG.map((tool) => tool.id).sort();
 
     expect(names).toEqual(expected);
-    expect(names.some((name: string) => /terminal|d1_query|github_write/i.test(name))).toBe(false);
+    expect(names.some((name: string) => /terminal|shell|d1_query|sql|github_write|vault|secret_get/i.test(name))).toBe(false);
+
+    for (const tool of tools) {
+      expect(tool.inputSchema).toBeDefined();
+      expect(tool.outputSchema).toBeDefined();
+      expect(tool.annotations).toBeDefined();
+      expect(tool._meta?.securitySchemes?.[0]?.type).toBe("oauth2");
+    }
+
+    const profile = tools.find((tool: any) => tool.name === "agentsam.profile");
+    expect(profile?._meta?.["openai/profile"]).toBe(true);
   });
 
-  it("fails protected tool execution closed while public auth is unwired", async () => {
-    const response = await rpc("tools/call", {
+  it("isolates Brand and Campaign install surfaces", async () => {
+    const brand = await listed("/mcp/brand");
+    const campaign = await listed("/mcp/campaign");
+
+    expect(brand.map((tool: any) => tool.name).sort())
+      .toEqual(BRAND_TOOL_CATALOG.map((tool) => tool.id).sort());
+    expect(campaign.map((tool: any) => tool.name).sort())
+      .toEqual(CAMPAIGN_TOOL_CATALOG.map((tool) => tool.id).sort());
+
+    expect(brand.some((tool: any) => tool.name.startsWith("campaign."))).toBe(false);
+    expect(campaign.some((tool: any) => tool.name.startsWith("brand."))).toBe(false);
+  });
+
+  it("fails protected execution closed with a standard OAuth challenge when disconnected", async () => {
+    const response = await rpc("/mcp/brand", "tools/call", {
       name: "brand.get_context",
       arguments: {}
     });
@@ -64,6 +95,7 @@ describe("public MCP transport", () => {
     expect(response.status).toBe(200);
     const body = await response.json() as any;
     expect(body.result?.isError).toBe(true);
-    expect(body.result?.content?.[0]?.text).toContain("authentication_required");
+    expect(body.result?.structuredContent?.error?.code).toBe("authentication_required");
+    expect(body.result?._meta?.["mcp/www_authenticate"]?.[0]).toContain("resource_metadata=");
   });
 });

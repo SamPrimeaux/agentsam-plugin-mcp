@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const JsonObject = z.record(z.unknown());
+const JsonObject = z.record(z.string(), z.unknown());
 
 export const BRAND_TOOL_INPUT_SCHEMAS = {
   "brand.get_context": z.object({}),

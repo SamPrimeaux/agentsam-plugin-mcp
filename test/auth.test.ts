@@ -20,13 +20,22 @@ describe("tool authorization", () => {
   });
 
   it("rejects missing scopes", () => {
-    const principal: PublicPrincipal = { userId: "usr_demo", scopes: new Set() };
+    const principal: PublicPrincipal = {
+      userId: "usr_demo",
+      profileId: "prf_demo",
+      issuer: "https://issuer.example",
+      subject: "subject-demo",
+      scopes: new Set()
+    };
     expect(authorizeTool(principal, tool).ok).toBe(false);
   });
 
   it("accepts required scope", () => {
     const principal: PublicPrincipal = {
       userId: "usr_demo",
+      profileId: "prf_demo",
+      issuer: "https://issuer.example",
+      subject: "subject-demo",
       scopes: new Set(["brand:read"])
     };
     expect(authorizeTool(principal, tool).ok).toBe(true);

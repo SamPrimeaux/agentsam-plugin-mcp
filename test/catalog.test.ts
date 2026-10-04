@@ -7,7 +7,8 @@ describe("public MCP catalog", () => {
     const plugins = new Set(PUBLIC_TOOL_CATALOG.map((tool) => tool.plugin));
     expect([...plugins].sort()).toEqual([
       "agentsam-brand",
-      "agentsam-campaign-studio"
+      "agentsam-campaign",
+      "agentsam-shared"
     ]);
   });
 
