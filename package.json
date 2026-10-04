@@ -14,7 +14,9 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "hono": "^4.0.0",
-    "zod": "^3.23.0"
+    "zod": "^3.23.0",
+    "@inneranimalmedia/agentsam-brand": "file:../agentsam-sdk/packages/agentsam-brand",
+    "@inneranimalmedia/agentsam-campaign": "file:../agentsam-sdk/packages/agentsam-campaign"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",

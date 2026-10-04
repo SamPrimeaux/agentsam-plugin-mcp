@@ -1,15 +1,14 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import { z } from "zod";
 import type { Context } from "hono";
 import type { Env, PublicToolDefinition } from "../types";
 import { resolvePrincipal } from "../auth/principal";
 import { authorizeTool } from "../auth/authorize";
 import { PUBLIC_TOOL_CATALOG } from "./catalog";
+import { dispatchPublicTool } from "./dispatch";
+import { getPublicToolInputSchema } from "./schemas";
 
-const GENERIC_PUBLIC_INPUT = z.object({}).passthrough();
-
-function toolAnnotations(tool: PublicToolDefinition) {
+function annotations(tool: PublicToolDefinition) {
   return {
     title: tool.title,
     readOnlyHint: tool.readOnlyHint,
@@ -18,25 +17,26 @@ function toolAnnotations(tool: PublicToolDefinition) {
   };
 }
 
-function errorResult(code: string, details?: unknown) {
-  const payload = details === undefined ? { error: code } : { error: code, details };
+function content(payload: unknown) {
   return {
-    isError: true as const,
-    content: [{ type: "text" as const, text: JSON.stringify(payload) }]
+    content: [{
+      type: "text" as const,
+      text: JSON.stringify(payload)
+    }]
   };
 }
 
-function createPublicMcpServer(c: Context<{ Bindings: Env }>) {
+function failure(error: string, details?: unknown) {
+  return {
+    isError: true as const,
+    ...content(details === undefined ? { error } : { error, details })
+  };
+}
+
+function createServer(c: Context<{ Bindings: Env }>) {
   const server = new McpServer(
-    {
-      name: c.env.SERVICE_NAME || "agentsam-plugin-mcp",
-      version: "0.1.0"
-    },
-    {
-      capabilities: {
-        tools: {}
-      }
-    }
+    { name: c.env.SERVICE_NAME || "agentsam-plugin-mcp", version: "0.1.0" },
+    { capabilities: { tools: {} } }
   );
 
   for (const tool of PUBLIC_TOOL_CATALOG) {
@@ -45,28 +45,36 @@ function createPublicMcpServer(c: Context<{ Bindings: Env }>) {
       {
         title: tool.title,
         description: tool.description,
-        inputSchema: GENERIC_PUBLIC_INPUT,
-        annotations: toolAnnotations(tool)
+        inputSchema: getPublicToolInputSchema(tool.id),
+        annotations: annotations(tool)
       },
-      async (_args) => {
+      async (args) => {
         const principal = await resolvePrincipal(c);
-        const authorization = authorizeTool(principal, tool);
-
-        if (!authorization.ok) {
-          return errorResult(authorization.error, "missing" in authorization ? {
-            missing: authorization.missing
-          } : undefined);
+        if (!principal) {
+          return failure("authentication_required");
         }
 
-        // Transport/catalog/auth boundary is now live. Domain execution is wired
-        // separately so this public MCP never grows an accidental generic executor.
-        return errorResult("brand_handlers_not_wired", {
-          tool: tool.id
-        });
+        const auth = authorizeTool(principal, tool);
+        if (!auth.ok) {
+          return failure(
+            auth.error,
+            "missing" in auth ? { missing: auth.missing } : undefined
+          );
+        }
+
+        try {
+          return content(await dispatchPublicTool(
+            tool.id,
+            (args || {}) as Record<string, unknown>,
+            c.env,
+            principal
+          ));
+        } catch (error) {
+          return failure(error instanceof Error ? error.message : "public_tool_failed");
+        }
       }
     );
   }
-
   return server;
 }
 
@@ -79,7 +87,7 @@ export async function handleMcp(c: Context<{ Bindings: Env }>) {
     );
   }
 
-  const server = createPublicMcpServer(c);
+  const server = createServer(c);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true
