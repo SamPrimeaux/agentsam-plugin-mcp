@@ -50,7 +50,8 @@ export function connectionEvidenceSummary(connections: ResourceConnection[]): Pu
         providerKey: connection.providerKey,
         resource: typeof metadata.resource === "string" ? metadata.resource : capability,
         externalId: typeof metadata.external_id === "string" ? metadata.external_id : undefined
-      }]
+      }],
+      data: metadata.data
     } satisfies PublicEvidenceRecord];
   }));
 }
