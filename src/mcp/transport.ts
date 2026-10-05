@@ -1,12 +1,16 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import { McpServer, WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/server";
 import type { Context } from "hono";
 import type { Env, PublicToolDefinition } from "../types";
+import { PublicAuthError } from "../auth/token";
+import { authChallenge } from "../auth/challenge";
 import { resolvePrincipal } from "../auth/principal";
 import { authorizeTool } from "../auth/authorize";
-import { PUBLIC_TOOL_CATALOG } from "./catalog";
+import { publicCatalogForSurface, type PublicToolSurface } from "./catalog";
 import { dispatchPublicTool } from "./dispatch";
-import { getPublicToolInputSchema } from "./schemas";
+import { getPublicToolInputSchema, getPublicToolOutputSchema } from "./schemas";
+import { errorEnvelope, successEnvelope } from "./result";
+import { beginToolReceipt, finishToolReceipt } from "./receipts";
+import { registerUiResources, toolUiMeta } from "../ui/resources";
 
 function annotations(tool: PublicToolDefinition) {
   return {
@@ -17,77 +21,135 @@ function annotations(tool: PublicToolDefinition) {
   };
 }
 
-function content(payload: unknown) {
+function securitySchemes(tool: PublicToolDefinition) {
+  return [{ type: "oauth2", scopes: [...tool.scopes] }];
+}
+
+function descriptorMeta(tool: PublicToolDefinition) {
   return {
-    content: [{
-      type: "text" as const,
-      text: JSON.stringify(payload)
-    }]
+    securitySchemes: securitySchemes(tool),
+    ...(tool.profile ? { "openai/profile": true } : {}),
+    ...toolUiMeta(tool.id)
   };
 }
 
-function failure(error: string, details?: unknown) {
+function textAndStructured(structuredContent: Record<string, unknown>, isError = false, meta?: Record<string, unknown>) {
   return {
-    isError: true as const,
-    ...content(details === undefined ? { error } : { error, details })
+    content: [{ type: "text" as const, text: JSON.stringify(structuredContent) }],
+    structuredContent,
+    ...(meta ? { _meta: meta } : {}),
+    ...(isError ? { isError: true as const } : {})
   };
 }
 
-function createServer(c: Context<{ Bindings: Env }>) {
+function authFailure(
+  c: Context<{ Bindings: Env }>,
+  tool: PublicToolDefinition,
+  code: "authentication_required" | "invalid_token" | "insufficient_scope",
+  message: string,
+  missing: string[] = []
+) {
+  const envelope = errorEnvelope(tool, new Error(message), missing);
+  envelope.error = {
+    code,
+    message,
+    recoverable: true,
+    missing
+  };
+  const challenge = authChallenge(c, code, message, missing.length ? missing : tool.scopes);
+  return textAndStructured(envelope as unknown as Record<string, unknown>, true, {
+    "mcp/www_authenticate": [challenge]
+  });
+}
+
+function createServer(c: Context<{ Bindings: Env }>, surface: PublicToolSurface) {
+  const version = c.env.SERVICE_VERSION || "0.2.0";
   const server = new McpServer(
-    { name: c.env.SERVICE_NAME || "agentsam-plugin-mcp", version: "0.1.0" },
-    { capabilities: { tools: {} } }
+    {
+      name: surface === "brand" ? "agentsam-brand" : surface === "campaign" ? "agentsam-campaign" : (c.env.SERVICE_NAME || "agentsam-plugin-mcp"),
+      version
+    },
+    {
+      capabilities: { tools: {} },
+      instructions:
+        surface === "brand"
+          ? "Use Brand tools to inspect, define, review, and plan brand work from observed evidence. Never silently redefine canonical BrandContract state."
+          : surface === "campaign"
+            ? "Use Campaign tools for evidence-backed campaign decisions. Distinguish observed, inferred, estimated, missing, and proposed evidence; never guarantee outcomes."
+            : "Public least-privilege AgentSam capability plane. Use only user-recognizable Brand and Campaign operations; private operator capabilities are not available here."
+    }
   );
 
-  for (const tool of PUBLIC_TOOL_CATALOG) {
+  registerUiResources(server, surface);
+
+  for (const tool of publicCatalogForSurface(surface)) {
     server.registerTool(
       tool.id,
       {
         title: tool.title,
         description: tool.description,
-        inputSchema: getPublicToolInputSchema(tool.id),
-        annotations: annotations(tool)
+        inputSchema: getPublicToolInputSchema(tool.id) as any,
+        outputSchema: getPublicToolOutputSchema(tool.id) as any,
+        annotations: annotations(tool),
+        _meta: descriptorMeta(tool)
       },
-      async (args) => {
-        const principal = await resolvePrincipal(c);
+      async (args: any) => {
+        let principal;
+        try {
+          principal = await resolvePrincipal(c);
+        } catch (error) {
+          const code = error instanceof PublicAuthError && error.code === "oauth_not_configured"
+            ? "invalid_token"
+            : "invalid_token";
+          return authFailure(c, tool, code, error instanceof Error ? error.message : "Authentication failed.");
+        }
+
         if (!principal) {
-          return failure("authentication_required");
+          return authFailure(c, tool, "authentication_required", "Connect an AgentSam account to continue.");
         }
 
         const auth = authorizeTool(principal, tool);
         if (!auth.ok) {
-          return failure(
-            auth.error,
-            "missing" in auth ? { missing: auth.missing } : undefined
-          );
+          const missing = "missing" in auth && auth.missing ? [...auth.missing] : [...tool.scopes];
+          return authFailure(c, tool, "insufficient_scope", "The connected account has not granted the required permission.", missing);
+        }
+
+        const requestId = c.req.header("x-request-id") || c.req.header("cf-ray") || undefined;
+        let receipt;
+        try {
+          receipt = await beginToolReceipt(c.env, principal, tool, args || {}, requestId);
+        } catch (error) {
+          const envelope = errorEnvelope(tool, error);
+          return textAndStructured(envelope as unknown as Record<string, unknown>, true);
         }
 
         try {
-          return content(await dispatchPublicTool(
-            tool.id,
-            (args || {}) as Record<string, unknown>,
-            c.env,
-            principal
-          ));
+          const payload = await dispatchPublicTool(tool.id, (args || {}) as Record<string, unknown>, c.env, principal);
+          await finishToolReceipt(c.env, receipt, "succeeded").catch(() => undefined);
+
+          if (tool.profile) {
+            return textAndStructured(payload as Record<string, unknown>);
+          }
+
+          return textAndStructured(successEnvelope(tool, payload) as unknown as Record<string, unknown>);
         } catch (error) {
-          return failure(error instanceof Error ? error.message : "public_tool_failed");
+          const envelope = errorEnvelope(tool, error);
+          await finishToolReceipt(c.env, receipt, "failed", envelope.error?.code).catch(() => undefined);
+          return textAndStructured(envelope as unknown as Record<string, unknown>, true);
         }
       }
     );
   }
+
   return server;
 }
 
-export async function handleMcp(c: Context<{ Bindings: Env }>) {
+export async function handleMcp(c: Context<{ Bindings: Env }>, surface: PublicToolSurface = "all") {
   if (!["GET", "POST", "DELETE"].includes(c.req.method)) {
-    return c.json(
-      { ok: false, error: "method_not_allowed" },
-      405,
-      { Allow: "GET, POST, DELETE" }
-    );
+    return c.json({ ok: false, error: "method_not_allowed" }, 405, { Allow: "GET, POST, DELETE" });
   }
 
-  const server = createServer(c);
+  const server = createServer(c, surface);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true

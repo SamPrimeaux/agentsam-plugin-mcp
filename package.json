@@ -9,14 +9,22 @@
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "test:evals": "node test/evals/run.mjs",
+    "test:all": "npm run typecheck && npm test && npm run test:evals && npm run verify:plugins",
+    "verify:plugins": "node scripts/verify-plugin-packages.mjs"
   },
   "dependencies": {
     "@inneranimalmedia/agentsam-brand": "^2.6.11",
     "@inneranimalmedia/agentsam-campaign": "^2.6.11",
-    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@inneranimalmedia/agentsam-errors": "^2.6.11",
+    "@modelcontextprotocol/client": "^2.3.0",
+    "@modelcontextprotocol/core": "^2.3.0",
+    "@modelcontextprotocol/ext-apps": "^2.0.3",
+    "@modelcontextprotocol/server": "^2.3.0",
     "hono": "^4.0.0",
-    "zod": "^3.23.0"
+    "jose": "^6.2.12",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",

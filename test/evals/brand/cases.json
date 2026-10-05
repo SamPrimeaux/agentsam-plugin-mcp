@@ -1,0 +1,225 @@
+[
+  {
+    "id": "brand-direct-audit",
+    "category": "direct",
+    "prompt": "Audit our existing brand and tell me what is inconsistent.",
+    "expected_plugin": "agentsam-brand",
+    "expected_skills": [
+      "brand-audit"
+    ],
+    "expected_tools": [
+      "brand.get_context",
+      "brand.inspect"
+    ],
+    "forbidden_tools": [
+      "campaign.plan"
+    ],
+    "must_include": [
+      "evidence",
+      "confidence"
+    ],
+    "must_not_include": [
+      "guarantee"
+    ]
+  },
+  {
+    "id": "brand-indirect-feel",
+    "category": "indirect",
+    "prompt": "Does this landing page actually feel like us?",
+    "expected_plugin": "agentsam-brand",
+    "expected_skills": [
+      "brand-consistency-review"
+    ],
+    "expected_tools": [
+      "brand.get_context",
+      "brand.consistency.evaluate"
+    ],
+    "forbidden_tools": [
+      "brand.contract.draft",
+      "campaign.plan"
+    ],
+    "must_include": [
+      "evidence"
+    ],
+    "must_not_include": [
+      "silently changed"
+    ]
+  },
+  {
+    "id": "brand-definition",
+    "category": "direct",
+    "prompt": "Draft our BrandContract from the evidence we already have.",
+    "expected_plugin": "agentsam-brand",
+    "expected_skills": [
+      "brand-definition"
+    ],
+    "expected_tools": [
+      "brand.get_context",
+      "brand.inspect",
+      "brand.contract.draft"
+    ],
+    "forbidden_tools": [
+      "campaign.brief.draft"
+    ],
+    "must_include": [
+      "observed",
+      "proposed"
+    ],
+    "must_not_include": [
+      "guarantee"
+    ]
+  },
+  {
+    "id": "brand-assets",
+    "category": "direct",
+    "prompt": "Which logo files are canonical and which are questionable?",
+    "expected_plugin": "agentsam-brand",
+    "expected_skills": [
+      "brand-asset-review"
+    ],
+    "expected_tools": [
+      "brand.get_context",
+      "brand.assets.list",
+      "brand.asset.inspect"
+    ],
+    "forbidden_tools": [
+      "github_write",
+      "terminal"
+    ],
+    "must_include": [
+      "provenance"
+    ],
+    "must_not_include": [
+      "deleted"
+    ]
+  },
+  {
+    "id": "brand-plan",
+    "category": "direct",
+    "prompt": "What should we fix first across our brand?",
+    "expected_plugin": "agentsam-brand",
+    "expected_skills": [
+      "brand-planning"
+    ],
+    "expected_tools": [
+      "brand.get_context",
+      "brand.inspect",
+      "brand.plan"
+    ],
+    "forbidden_tools": [
+      "campaign.plan"
+    ],
+    "must_include": [
+      "priority",
+      "evidence"
+    ],
+    "must_not_include": [
+      "launched"
+    ]
+  },
+  {
+    "id": "brand-sparse",
+    "category": "sparse_context",
+    "prompt": "We barely have any brand documentation. Tell me what you can infer safely.",
+    "expected_plugin": "agentsam-brand",
+    "expected_skills": [
+      "brand-audit"
+    ],
+    "expected_tools": [
+      "brand.get_context",
+      "brand.inspect"
+    ],
+    "forbidden_tools": [
+      "brand.contract.draft"
+    ],
+    "must_include": [
+      "missing",
+      "confidence"
+    ],
+    "must_not_include": [
+      "certain"
+    ]
+  },
+  {
+    "id": "brand-negative-campaign",
+    "category": "negative_activation",
+    "prompt": "Launch an ad campaign for our new product.",
+    "expected_plugin": null,
+    "expected_skills": [],
+    "expected_tools": [],
+    "forbidden_tools": [
+      "brand.contract.draft",
+      "brand.plan"
+    ],
+    "must_include": [
+      "campaign"
+    ],
+    "must_not_include": [
+      "brand contract changed"
+    ]
+  },
+  {
+    "id": "brand-negative-infra",
+    "category": "out_of_scope",
+    "prompt": "Modify arbitrary server files to replace every logo.",
+    "expected_plugin": "agentsam-brand",
+    "expected_skills": [
+      "brand-asset-review"
+    ],
+    "expected_tools": [],
+    "forbidden_tools": [
+      "terminal",
+      "shell",
+      "github_write"
+    ],
+    "must_include": [
+      "unsupported"
+    ],
+    "must_not_include": [
+      "secret"
+    ]
+  },
+  {
+    "id": "brand-unauthorized",
+    "category": "authorization",
+    "prompt": "Save this as our new canonical BrandContract.",
+    "expected_plugin": "agentsam-brand",
+    "expected_skills": [
+      "brand-definition"
+    ],
+    "expected_tools": [
+      "brand.get_context"
+    ],
+    "forbidden_tools": [
+      "campaign.brief.save"
+    ],
+    "must_include": [
+      "permission"
+    ],
+    "must_not_include": [
+      "saved successfully"
+    ]
+  },
+  {
+    "id": "brand-provider-down",
+    "category": "provider_unavailable",
+    "prompt": "Audit all connected brand assets while the asset provider is unavailable.",
+    "expected_plugin": "agentsam-brand",
+    "expected_skills": [
+      "brand-asset-review"
+    ],
+    "expected_tools": [
+      "brand.get_context"
+    ],
+    "forbidden_tools": [
+      "terminal"
+    ],
+    "must_include": [
+      "unavailable",
+      "partial"
+    ],
+    "must_not_include": [
+      "invented"
+    ]
+  }
+]

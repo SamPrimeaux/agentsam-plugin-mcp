@@ -5,6 +5,10 @@ import {
   buildCampaignPlan
 } from "@inneranimalmedia/agentsam-campaign";
 import type { Env, PublicPrincipal } from "../../types";
+import {
+  connectionEvidenceSummary,
+  listWorkspaceConnections
+} from "../../connections/resolver";
 
 type JsonArgs = Record<string, unknown>;
 
@@ -22,32 +26,37 @@ async function getContext(env: Env, principal: PublicPrincipal) {
   const workspaceId = requireWorkspace(principal);
 
   const brand = await env.DB.prepare(
-    `SELECT id, contract_json, evidence_json, updated_at
-       FROM public_brand_contracts
-      WHERE workspace_id = ?1
-      ORDER BY updated_at DESC
-      LIMIT 1`
+    "SELECT id, contract_json, evidence_json, updated_at FROM public_brand_contracts WHERE workspace_id = ?1 ORDER BY updated_at DESC LIMIT 1"
   ).bind(workspaceId).first();
 
   const briefs = await env.DB.prepare(
-    `SELECT id, status, brief_json, created_at, updated_at
-       FROM public_campaign_briefs
-      WHERE workspace_id = ?1
-      ORDER BY updated_at DESC LIMIT 20`
+    "SELECT id, status, brief_json, created_at, updated_at FROM public_campaign_briefs WHERE workspace_id = ?1 ORDER BY updated_at DESC LIMIT 20"
   ).bind(workspaceId).all();
 
   const concepts = await env.DB.prepare(
-    `SELECT id, brief_id, status, concept_json, evaluation_json,
-            created_at, updated_at
-       FROM public_campaign_concepts
-      WHERE workspace_id = ?1
-      ORDER BY updated_at DESC LIMIT 50`
+    "SELECT id, brief_id, status, concept_json, evaluation_json, created_at, updated_at FROM public_campaign_concepts WHERE workspace_id = ?1 ORDER BY updated_at DESC LIMIT 50"
   ).bind(workspaceId).all();
+
+  const outcomes = await env.DB.prepare(
+    "SELECT id, concept_id, source_key, outcome_json, observed_at, created_at FROM public_campaign_outcomes WHERE workspace_id = ?1 ORDER BY COALESCE(observed_at, created_at) DESC LIMIT 50"
+  ).bind(workspaceId).all();
+
+  const experiments = await env.DB.prepare(
+    "SELECT id, brief_id, concept_id, status, experiment_json, created_at, updated_at FROM public_campaign_experiments WHERE workspace_id = ?1 ORDER BY updated_at DESC LIMIT 50"
+  ).bind(workspaceId).all();
+
+  const learnings = await env.DB.prepare(
+    "SELECT id, outcome_id, source_key, learning_json, observed_at, created_at, updated_at FROM public_campaign_learnings WHERE workspace_id = ?1 ORDER BY COALESCE(observed_at, updated_at) DESC LIMIT 50"
+  ).bind(workspaceId).all();
+
+  const connections = await listWorkspaceConnections(env, workspaceId);
 
   return {
     workspaceId,
-    brandContract: brand ? parseJson(brand.contract_json) : null,
-    brandEvidence: brand ? parseJson(brand.evidence_json) : null,
+    brandContract: brand ? parseJson((brand as any).contract_json) : null,
+    brandEvidence: brand ? parseJson((brand as any).evidence_json) : null,
+    connections,
+    evidence: connectionEvidenceSummary(connections),
     briefs: (briefs.results ?? []).map((row: any) => ({
       ...row,
       brief: parseJson(row.brief_json)
@@ -56,6 +65,18 @@ async function getContext(env: Env, principal: PublicPrincipal) {
       ...row,
       concept: parseJson(row.concept_json),
       evaluation: parseJson(row.evaluation_json)
+    })),
+    outcomes: (outcomes.results ?? []).map((row: any) => ({
+      ...row,
+      outcome: parseJson(row.outcome_json)
+    })),
+    experiments: (experiments.results ?? []).map((row: any) => ({
+      ...row,
+      experiment: parseJson(row.experiment_json)
+    })),
+    learnings: (learnings.results ?? []).map((row: any) => ({
+      ...row,
+      learning: parseJson(row.learning_json)
     }))
   };
 }
@@ -89,16 +110,10 @@ export async function dispatchCampaignTool(
     case "campaign.brief.save": {
       const workspaceId = requireWorkspace(principal);
       const brief = args.brief as any;
-      const briefId = String(brief?.id || `brief_${crypto.randomUUID()}`);
+      const briefId = String(brief?.id || "brief_" + crypto.randomUUID());
 
       await env.DB.prepare(
-        `INSERT INTO public_campaign_briefs
-           (id, workspace_id, status, brief_json, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, unixepoch(), unixepoch())
-         ON CONFLICT(id) DO UPDATE SET
-           status = excluded.status,
-           brief_json = excluded.brief_json,
-           updated_at = unixepoch()`
+        "INSERT INTO public_campaign_briefs (id, workspace_id, status, brief_json, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, unixepoch(), unixepoch()) ON CONFLICT(id) DO UPDATE SET status = excluded.status, brief_json = excluded.brief_json, updated_at = unixepoch()"
       ).bind(
         briefId,
         workspaceId,
@@ -112,19 +127,10 @@ export async function dispatchCampaignTool(
     case "campaign.concept.save": {
       const workspaceId = requireWorkspace(principal);
       const concept = args.concept as any;
-      const conceptId = String(concept?.id || `concept_${crypto.randomUUID()}`);
+      const conceptId = String(concept?.id || "concept_" + crypto.randomUUID());
 
       await env.DB.prepare(
-        `INSERT INTO public_campaign_concepts
-           (id, workspace_id, brief_id, status, concept_json,
-            evaluation_json, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, unixepoch(), unixepoch())
-         ON CONFLICT(id) DO UPDATE SET
-           brief_id = excluded.brief_id,
-           status = excluded.status,
-           concept_json = excluded.concept_json,
-           evaluation_json = excluded.evaluation_json,
-           updated_at = unixepoch()`
+        "INSERT INTO public_campaign_concepts (id, workspace_id, brief_id, status, concept_json, evaluation_json, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, unixepoch(), unixepoch()) ON CONFLICT(id) DO UPDATE SET brief_id = excluded.brief_id, status = excluded.status, concept_json = excluded.concept_json, evaluation_json = excluded.evaluation_json, updated_at = unixepoch()"
       ).bind(
         conceptId,
         workspaceId,

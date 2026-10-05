@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "agentsam_brand": {
+      "type": "streamable-http",
+      "url": "https://agentsam-plugin-mcp.meauxbility.workers.dev/mcp/brand"
+    }
+  }
+}
