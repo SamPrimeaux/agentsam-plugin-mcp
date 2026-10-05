@@ -86,6 +86,36 @@ describe("public MCP transport", () => {
     expect(campaign.some((tool: any) => tool.name.startsWith("brand."))).toBe(false);
   });
 
+  it("advertises and serves only the UI resource owned by each product surface", async () => {
+    const brandTools = await listed("/mcp/brand");
+    const campaignTools = await listed("/mcp/campaign");
+
+    const brandContext = brandTools.find((tool: any) => tool.name === "brand.get_context");
+    const campaignRank = campaignTools.find((tool: any) => tool.name === "campaign.concepts.rank");
+
+    expect(brandContext?._meta?.ui?.resourceUri).toBe("ui://agentsam-brand/snapshot-v1.html");
+    expect(campaignRank?._meta?.ui?.resourceUri).toBe("ui://agentsam-campaign/concept-compare-v1.html");
+
+    const brandResourcesResponse = await rpc("/mcp/brand", "resources/list");
+    const brandResourcesBody = await brandResourcesResponse.json() as any;
+    const brandUris = (brandResourcesBody.result?.resources ?? []).map((row: any) => row.uri);
+    expect(brandUris).toContain("ui://agentsam-brand/snapshot-v1.html");
+    expect(brandUris).not.toContain("ui://agentsam-campaign/concept-compare-v1.html");
+
+    const campaignResourcesResponse = await rpc("/mcp/campaign", "resources/list");
+    const campaignResourcesBody = await campaignResourcesResponse.json() as any;
+    const campaignUris = (campaignResourcesBody.result?.resources ?? []).map((row: any) => row.uri);
+    expect(campaignUris).toContain("ui://agentsam-campaign/concept-compare-v1.html");
+    expect(campaignUris).not.toContain("ui://agentsam-brand/snapshot-v1.html");
+
+    const readResponse = await rpc("/mcp/brand", "resources/read", {
+      uri: "ui://agentsam-brand/snapshot-v1.html"
+    });
+    const readBody = await readResponse.json() as any;
+    expect(readBody.result?.contents?.[0]?.mimeType).toBe("text/html;profile=mcp-app");
+    expect(readBody.result?.contents?.[0]?.text).toContain("Brand Snapshot");
+  });
+
   it("fails protected execution closed with a standard OAuth challenge when disconnected", async () => {
     const response = await rpc("/mcp/brand", "tools/call", {
       name: "brand.get_context",
