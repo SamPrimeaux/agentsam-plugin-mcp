@@ -10,6 +10,7 @@ import { dispatchPublicTool } from "./dispatch";
 import { getPublicToolInputSchema, getPublicToolOutputSchema } from "./schemas";
 import { errorEnvelope, successEnvelope } from "./result";
 import { beginToolReceipt, finishToolReceipt } from "./receipts";
+import { registerUiResources, toolUiMeta } from "../ui/resources";
 
 function annotations(tool: PublicToolDefinition) {
   return {
@@ -27,7 +28,8 @@ function securitySchemes(tool: PublicToolDefinition) {
 function descriptorMeta(tool: PublicToolDefinition) {
   return {
     securitySchemes: securitySchemes(tool),
-    ...(tool.profile ? { "openai/profile": true } : {})
+    ...(tool.profile ? { "openai/profile": true } : {}),
+    ...toolUiMeta(tool.id)
   };
 }
 
@@ -77,6 +79,8 @@ function createServer(c: Context<{ Bindings: Env }>, surface: PublicToolSurface)
             : "Public least-privilege AgentSam capability plane. Use only user-recognizable Brand and Campaign operations; private operator capabilities are not available here."
     }
   );
+
+  registerUiResources(server, surface);
 
   for (const tool of publicCatalogForSurface(surface)) {
     server.registerTool(
