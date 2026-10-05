@@ -7,6 +7,7 @@ export interface Env {
   AGENTSAM_PUBLIC_ISSUER?: string;
   AGENTSAM_PUBLIC_AUDIENCE?: string;
   AGENTSAM_PUBLIC_JWKS_URL?: string;
+  AGENTSAM_PUBLIC_USERINFO_URL?: string;
   AGENTSAM_PUBLIC_BASE_URL?: string;
 }
 

@@ -30,10 +30,65 @@ export function scopesFromPayload(payload: JWTPayload) {
   };
   add(payload.scope);
   add((payload as any).scp);
+  add((payload as any).scopes);
   return scopes;
 }
 
-export async function verifyPublicAccessToken(env: Env, token: string) {
+async function verifyOpaqueToken(env: Env, token: string): Promise<JWTPayload> {
+  const issuer = env.AGENTSAM_PUBLIC_ISSUER?.trim();
+  const audience = env.AGENTSAM_PUBLIC_AUDIENCE?.trim();
+  const userinfoUrl = env.AGENTSAM_PUBLIC_USERINFO_URL?.trim();
+  if (!issuer || !audience || !userinfoUrl) {
+    throw new PublicAuthError("oauth_not_configured", "Public OAuth settings are incomplete.");
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(userinfoUrl, {
+      method: "GET",
+      headers: {
+        authorization: "Bearer " + token,
+        accept: "application/json"
+      },
+      signal: AbortSignal.timeout(5000)
+    });
+  } catch {
+    throw new PublicAuthError("oauth_upstream_unavailable", "The authorization server is unavailable.");
+  }
+
+  if (!response.ok) {
+    throw new PublicAuthError("invalid_token", "The access token is invalid or expired.");
+  }
+
+  const body = await response.json().catch(() => null) as any;
+  if (!body || typeof body !== "object" || typeof body.sub !== "string" || !body.sub.trim()) {
+    throw new PublicAuthError("invalid_token", "The authorization server returned an invalid subject.");
+  }
+  if (String(body.audience || "") !== audience) {
+    throw new PublicAuthError("invalid_token_audience", "The access token was not issued for this AgentSam resource.");
+  }
+
+  const scopes = Array.isArray(body.scopes)
+    ? body.scopes.filter((scope: unknown) => typeof scope === "string")
+    : typeof body.scope === "string"
+      ? body.scope.split(/\s+/).filter(Boolean)
+      : [];
+
+  return {
+    iss: issuer,
+    sub: body.sub,
+    aud: audience,
+    name: typeof body.name === "string" ? body.name : undefined,
+    email: typeof body.email === "string" ? body.email : undefined,
+    ...(typeof body.nickname === "string" ? { nickname: body.nickname } : {}),
+    ...(typeof body.workspace_id === "string" && body.workspace_id
+      ? { workspace_id: body.workspace_id }
+      : {}),
+    scope: scopes
+  } as JWTPayload;
+}
+
+async function verifyJwtToken(env: Env, token: string): Promise<JWTPayload> {
   const issuer = env.AGENTSAM_PUBLIC_ISSUER?.trim();
   const audience = env.AGENTSAM_PUBLIC_AUDIENCE?.trim();
   const jwksUrl = env.AGENTSAM_PUBLIC_JWKS_URL?.trim();
@@ -50,4 +105,11 @@ export async function verifyPublicAccessToken(env: Env, token: string) {
     if (error instanceof PublicAuthError) throw error;
     throw new PublicAuthError("invalid_token", "The access token is invalid or expired.");
   }
+}
+
+export async function verifyPublicAccessToken(env: Env, token: string) {
+  if (env.AGENTSAM_PUBLIC_USERINFO_URL?.trim()) {
+    return verifyOpaqueToken(env, token);
+  }
+  return verifyJwtToken(env, token);
 }

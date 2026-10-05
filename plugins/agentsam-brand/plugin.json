@@ -1,0 +1,100 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "agentsam-brand",
+  "version": "1.0.0",
+  "description": "Evidence-driven brand intelligence for auditing identity, drafting BrandContract context, reviewing consistency, inspecting assets, and planning brand improvements.",
+  "author": {
+    "name": "Inner Animal Media",
+    "email": "hey@inneranimalmedia.com",
+    "url": "https://inneranimalmedia.com"
+  },
+  "homepage": "https://agentsam.inneranimalmedia.com",
+  "repository": "https://github.com/SamPrimeaux/agentsam-plugin-mcp",
+  "keywords": ["brand", "identity", "brand-governance", "assets", "agentsam"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "AgentSam Brand",
+        "shortDescription": "Audit and govern your brand",
+        "longDescription": "Understand, define, review, and protect a real brand using authorized evidence from its assets, content, usage, and saved BrandContract context. AgentSam Brand separates observed facts from inferences and proposals, lowers confidence when evidence is missing, and does not silently redefine canonical brand decisions.",
+        "developerName": "Inner Animal Media",
+        "category": "Productivity",
+        "capabilities": [
+          "Audit brand evidence",
+          "Inspect brand assets",
+          "Draft BrandContract context",
+          "Review brand consistency",
+          "Plan brand improvements"
+        ],
+        "websiteURL": "https://agentsam.inneranimalmedia.com",
+        "supportURL": "https://agentsam-plugin-mcp.meauxbility.workers.dev/support",
+        "privacyPolicyURL": "https://agentsam-plugin-mcp.meauxbility.workers.dev/privacy",
+        "termsOfServiceURL": "https://agentsam-plugin-mcp.meauxbility.workers.dev/terms",
+        "defaultPrompt": [
+          "Audit our current brand and tell me what is inconsistent.",
+          "Does this landing page actually feel like our brand?",
+          "Draft a BrandContract from the evidence we already have."
+        ],
+        "brandColor": "#5B3FD6",
+        "composerIcon": "./assets/agentsam-icon.png",
+        "logo": "./assets/agentsam-icon.png"
+      },
+      "onboardingSkill": "./skills/brand-audit/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Audit current brand evidence",
+              "prompt": "Audit our current brand and tell me what is inconsistent.",
+              "tools_triggered": "brand.get_context, brand.inspect",
+              "expected_behavior": "Return evidence-backed brand findings, identify missing evidence, and keep observations separate from proposals."
+            },
+            {
+              "description": "Review brand consistency",
+              "prompt": "Does this landing page actually feel like our brand?",
+              "tools_triggered": "brand.get_context, brand.consistency.evaluate",
+              "expected_behavior": "Compare the supplied candidate against the current BrandContract and explain supported conflicts or uncertainty without changing the contract."
+            },
+            {
+              "description": "Draft BrandContract context",
+              "prompt": "Draft a BrandContract from the evidence we already have.",
+              "tools_triggered": "brand.get_context, brand.inspect, brand.contract.draft",
+              "expected_behavior": "Produce a draft grounded in available evidence, label unresolved decisions, and avoid treating proposals as canonical state."
+            },
+            {
+              "description": "Inspect brand assets",
+              "prompt": "Which logo files are canonical and which are questionable?",
+              "tools_triggered": "brand.get_context, brand.assets.list, brand.asset.inspect",
+              "expected_behavior": "Inspect authorized asset evidence and explain canonical, duplicate, stale, or unsupported status with provenance when available."
+            },
+            {
+              "description": "Plan brand remediation",
+              "prompt": "What should we fix first across our brand?",
+              "tools_triggered": "brand.get_context, brand.inspect, brand.plan",
+              "expected_behavior": "Return a prioritized non-destructive improvement plan grounded in current findings and confidence."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Campaign work belongs to the sibling Campaign product",
+              "prompt": "Launch an advertising campaign for our new product."
+            },
+            {
+              "description": "Private operator infrastructure is outside the public plugin boundary",
+              "prompt": "Open a terminal and change arbitrary files on my server."
+            },
+            {
+              "description": "Do not access another workspace",
+              "prompt": "Show me brand assets from a workspace I am not authorized to access."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "AgentSam Brand does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "Initial AgentSam Brand release with evidence-backed brand audit, BrandContract drafting, asset inspection, consistency review, and planning."
+      }
+    }
+  }
+}

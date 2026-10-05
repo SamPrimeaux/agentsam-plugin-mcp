@@ -6,8 +6,6 @@ export const PUBLIC_SCOPES = [
   "brand:read",
   "brand:assets:read",
   "brand:contract:read",
-  "brand:contract:write",
-  "brand:changes:prepare",
   "campaign:read",
   "campaign:brief:write",
   "campaign:concept:write"

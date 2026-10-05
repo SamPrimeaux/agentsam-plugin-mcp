@@ -5,7 +5,7 @@ export async function healthRoute(c: Context<{ Bindings: Env }>) {
   const authConfigured = Boolean(
     c.env.AGENTSAM_PUBLIC_ISSUER &&
     c.env.AGENTSAM_PUBLIC_AUDIENCE &&
-    c.env.AGENTSAM_PUBLIC_JWKS_URL
+    (c.env.AGENTSAM_PUBLIC_USERINFO_URL || c.env.AGENTSAM_PUBLIC_JWKS_URL)
   );
 
   return c.json({

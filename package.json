@@ -11,7 +11,8 @@
     "test": "vitest run",
     "cf-typegen": "wrangler types",
     "test:evals": "node test/evals/run.mjs",
-    "test:all": "npm run typecheck && npm test && npm run test:evals"
+    "test:all": "npm run typecheck && npm test && npm run test:evals && npm run verify:plugins",
+    "verify:plugins": "node scripts/verify-plugin-packages.mjs"
   },
   "dependencies": {
     "@inneranimalmedia/agentsam-brand": "^2.6.11",
