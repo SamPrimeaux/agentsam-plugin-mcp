@@ -1,6 +1,6 @@
 {
   "name": "@inneranimalmedia/agentsam-plugin-mcp",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "type": "module",
   "description": "Public least-privilege MCP capability plane for installable AgentSam plugins.",

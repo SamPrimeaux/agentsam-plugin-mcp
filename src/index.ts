@@ -5,12 +5,31 @@ import { oauthProtectedResourceRoute } from "./routes/oauth-metadata";
 import { handleMcp } from "./mcp/transport";
 import { privacyRoute, supportRoute, termsRoute } from "./routes/legal";
 import { PUBLIC_PLUGIN_CATALOG, PUBLIC_PLUGIN_ICONS } from "./generated/plugin-catalog";
+import { PUBLIC_TOOL_CATALOG } from "./mcp/catalog";
 
 const app = new Hono<{ Bindings: Env }>();
 
 app.get("/health", healthRoute);
 // Public, manifest-driven discovery only; installation and connection are host-owned.
-app.get("/catalog/plugins", (c) => c.json(PUBLIC_PLUGIN_CATALOG, 200, {
+app.get("/catalog/plugins", (c) => c.json({
+  ...PUBLIC_PLUGIN_CATALOG,
+  plugins: PUBLIC_PLUGIN_CATALOG.plugins.map(plugin => {
+    const permissions = PUBLIC_TOOL_CATALOG.filter(tool => tool.plugin === plugin.plugin_key && plugin.tools.some(name => name === tool.id));
+    return {
+      ...plugin,
+      oauth_scopes: [...new Set(permissions.flatMap(tool => tool.scopes))].sort(),
+      read_only_scopes: [...new Set(permissions.filter(tool => tool.readOnlyHint).flatMap(tool => tool.scopes))].sort(),
+      tool_permissions: permissions.map(tool => ({
+        id: tool.id,
+        title: tool.title,
+        scopes: [...tool.scopes],
+        read_only: tool.readOnlyHint,
+        requires_approval: !tool.readOnlyHint,
+      })),
+      oauth_resource: new URL("/mcp", plugin.endpoint_url).toString(),
+    };
+  }),
+}, 200, {
   "Access-Control-Allow-Origin": "*",
   "Cache-Control": "public, max-age=120",
   "X-Content-Type-Options": "nosniff",

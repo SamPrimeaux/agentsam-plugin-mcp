@@ -19,7 +19,7 @@ describe('public plugin discovery', () => {
     const response = await app.request('/catalog/plugins');
     expect(response.status).toBe(200);
     expect(response.headers.get('access-control-allow-origin')).toBe('*');
-    const payload = await response.json() as typeof PUBLIC_PLUGIN_CATALOG;
+    const payload = await response.json() as {schema:string;plugins:Array<(typeof PUBLIC_PLUGIN_CATALOG.plugins)[number] & {tool_permissions:Array<{id:string;scopes:string[];read_only:boolean;requires_approval:boolean}>;oauth_resource:string;read_only_scopes:string[];oauth_scopes:string[]}>};
     expect(payload.schema).toBe('agentsam.plugin-catalog/v1');
     expect(payload.plugins.map(p=>p.plugin_key)).toEqual(['agentsam-brand', 'agentsam-campaign']);
     for (const plugin of payload.plugins) {
@@ -29,6 +29,15 @@ describe('public plugin discovery', () => {
       expect(plugin.capabilities.length).toBeGreaterThan(0);
       expect(plugin.tool_count).toBeGreaterThan(0);
       expect(plugin.tools.length).toBe(plugin.tool_count);
+      expect(plugin.tool_permissions.length).toBe(plugin.tool_count);
+      expect(plugin.oauth_resource).toBe('https://agentsam-plugin-mcp.meauxbility.workers.dev/mcp');
+      expect(plugin.read_only_scopes.length).toBeGreaterThan(0);
+      expect(plugin.oauth_scopes.length).toBeGreaterThanOrEqual(plugin.read_only_scopes.length);
+      for (const tool of plugin.tool_permissions) {
+        expect(plugin.tools).toContain(tool.id);
+        expect(tool.scopes.length).toBeGreaterThan(0);
+        expect(tool.requires_approval).toBe(!tool.read_only);
+      }
       for (const id of plugin.tools) {
         expect(PUBLIC_TOOL_CATALOG.some(tool=>tool.id===id && tool.plugin===plugin.plugin_key)).toBe(true);
       }

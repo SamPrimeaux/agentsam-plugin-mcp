@@ -230,3 +230,10 @@ Deploy from clean synchronized main only:
 
 The deploy command runs the complete test gate and stamps the Worker with the verified
 git SHA and package version.
+
+## Authenticated MCP tool permissions
+
+The published /catalog/plugins response now includes machine-readable `tool_permissions`,
+`read_only_scopes`, `oauth_scopes`, and `oauth_resource` from the real registered
+MCP tool catalog. Consumers must compare these against authenticated MCP tools/list
+metadata and never treat discovery as an OAuth grant.
