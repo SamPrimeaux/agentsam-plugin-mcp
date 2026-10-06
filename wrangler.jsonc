@@ -4,6 +4,8 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-10-04",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "routes": [{"pattern": "plugins.inneranimalmedia.com", "custom_domain": true}],
   "d1_databases": [
     {
       "binding": "DB",
