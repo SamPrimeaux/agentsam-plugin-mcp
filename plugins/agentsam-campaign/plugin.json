@@ -27,9 +27,9 @@
           "Save approved briefs and concepts"
         ],
         "websiteURL": "https://agentsam.inneranimalmedia.com",
-        "supportURL": "https://agentsam-plugin-mcp.meauxbility.workers.dev/support",
-        "privacyPolicyURL": "https://agentsam-plugin-mcp.meauxbility.workers.dev/privacy",
-        "termsOfServiceURL": "https://agentsam-plugin-mcp.meauxbility.workers.dev/terms",
+        "supportURL": "https://plugins.inneranimalmedia.com/support",
+        "privacyPolicyURL": "https://plugins.inneranimalmedia.com/privacy",
+        "termsOfServiceURL": "https://plugins.inneranimalmedia.com/terms",
         "defaultPrompt": [
           "What campaign should we run next based on the evidence we have?",
           "Compare these campaign concepts and tell me which has the strongest case.",
