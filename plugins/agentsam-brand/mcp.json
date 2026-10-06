@@ -3,7 +3,7 @@
   "mcpServers": {
     "agentsam_brand": {
       "type": "streamable-http",
-      "url": "https://agentsam-plugin-mcp.meauxbility.workers.dev/mcp/brand"
+      "url": "https://plugins.inneranimalmedia.com/mcp/brand"
     }
   }
 }
