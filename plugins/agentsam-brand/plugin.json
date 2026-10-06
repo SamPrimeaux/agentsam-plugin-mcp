@@ -27,9 +27,9 @@
           "Plan brand improvements"
         ],
         "websiteURL": "https://agentsam.inneranimalmedia.com",
-        "supportURL": "https://agentsam-plugin-mcp.meauxbility.workers.dev/support",
-        "privacyPolicyURL": "https://agentsam-plugin-mcp.meauxbility.workers.dev/privacy",
-        "termsOfServiceURL": "https://agentsam-plugin-mcp.meauxbility.workers.dev/terms",
+        "supportURL": "https://plugins.inneranimalmedia.com/support",
+        "privacyPolicyURL": "https://plugins.inneranimalmedia.com/privacy",
+        "termsOfServiceURL": "https://plugins.inneranimalmedia.com/terms",
         "defaultPrompt": [
           "Audit our current brand and tell me what is inconsistent.",
           "Does this landing page actually feel like our brand?",
