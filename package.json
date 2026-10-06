@@ -1,6 +1,6 @@
 {
   "name": "@inneranimalmedia/agentsam-plugin-mcp",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "Public least-privilege MCP capability plane for installable AgentSam plugins.",
@@ -12,7 +12,11 @@
     "cf-typegen": "wrangler types",
     "test:evals": "node test/evals/run.mjs",
     "test:all": "npm run typecheck && npm test && npm run test:evals && npm run verify:plugins",
-    "verify:plugins": "node scripts/verify-plugin-packages.mjs"
+    "verify:plugins": "node scripts/verify-plugin-packages.mjs && npm run catalog:check",
+    "catalog:generate": "node scripts/generate-plugin-catalog.mjs",
+    "catalog:check": "node scripts/generate-plugin-catalog.mjs --check",
+    "plugin:create": "node scripts/create-plugin.mjs",
+    "deploy:main": "node scripts/deploy-from-main.mjs"
   },
   "dependencies": {
     "@inneranimalmedia/agentsam-brand": "^2.6.11",

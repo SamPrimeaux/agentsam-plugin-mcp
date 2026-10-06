@@ -201,3 +201,32 @@ Status
 The public MCP transport, Brand surface, Campaign surface, local/remote D1 schema, published Brand/Campaign domain packages, and current test suite are operational.
 The broader plugin lifecycle, OAuth completion, additional skills, optional MCP UI, execution/measurement actions, and public-directory packaging continue to evolve.
 
+
+## Manifest-driven discovery and repeatable plugin creation
+
+Public, read-only discovery is available at GET /catalog/plugins, generated entirely from
+the real plugin.json and mcp.json manifests, registered routes, tool definitions and skill
+directories in plugins/. Logos are served from validated packaged assets at /catalog/icons/:file.
+
+Add a draft with:
+
+    npm run plugin:create -- agentsam-example --title "AgentSam Example"
+
+This generates a draft in drafts/; drafts never enter the public catalog. Build real MCP
+tools, handlers, OAuth scopes, reviews, and a registered route before promoting it to
+plugins/agentsam-example. Then run:
+
+    npm run catalog:generate
+    npm run test:all
+
+A configured Studio host can discover multiple independently hosted catalog sources through
+its AGENTSAM_PLUGIN_CATALOG_URLS runtime configuration. This route is public metadata only;
+discovery is NOT installation, OAuth authorization, verified connection health, or tool
+execution.
+
+Deploy from clean synchronized main only:
+
+    npm run deploy:main
+
+The deploy command runs the complete test gate and stamps the Worker with the verified
+git SHA and package version.

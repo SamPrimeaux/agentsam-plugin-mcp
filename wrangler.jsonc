@@ -15,7 +15,7 @@
   "vars": {
     "SERVICE_NAME": "agentsam-plugin-mcp",
     "SERVICE_ENV": "production",
-    "SERVICE_VERSION": "0.2.0",
+    "SERVICE_VERSION": "0.2.1",
     "AGENTSAM_PUBLIC_BASE_URL": "https://agentsam-plugin-mcp.meauxbility.workers.dev",
     "AGENTSAM_PUBLIC_ISSUER": "https://inneranimalmedia.com",
     "AGENTSAM_PUBLIC_AUDIENCE": "https://agentsam-plugin-mcp.meauxbility.workers.dev/mcp",
