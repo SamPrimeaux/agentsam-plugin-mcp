@@ -3,7 +3,7 @@
   "mcpServers": {
     "agentsam_campaign": {
       "type": "streamable-http",
-      "url": "https://agentsam-plugin-mcp.meauxbility.workers.dev/mcp/campaign"
+      "url": "https://plugins.inneranimalmedia.com/mcp/campaign"
     }
   }
 }

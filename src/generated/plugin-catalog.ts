@@ -42,14 +42,14 @@ export const PUBLIC_PLUGIN_CATALOG = {
         "brand.consistency.evaluate",
         "brand.plan"
       ],
-      "endpoint_url": "https://agentsam-plugin-mcp.meauxbility.workers.dev/mcp/brand",
-      "icon_url": "https://agentsam-plugin-mcp.meauxbility.workers.dev/catalog/icons/agentsam-brand.png?v=1.0.0",
+      "endpoint_url": "https://plugins.inneranimalmedia.com/mcp/brand",
+      "icon_url": "https://plugins.inneranimalmedia.com/catalog/icons/agentsam-brand.png?v=1.0.0",
       "transport": "streamable-http",
       "auth_type": "oauth",
       "website_url": "https://agentsam.inneranimalmedia.com",
-      "support_url": "https://agentsam-plugin-mcp.meauxbility.workers.dev/support",
-      "privacy_url": "https://agentsam-plugin-mcp.meauxbility.workers.dev/privacy",
-      "terms_url": "https://agentsam-plugin-mcp.meauxbility.workers.dev/terms",
+      "support_url": "https://plugins.inneranimalmedia.com/support",
+      "privacy_url": "https://plugins.inneranimalmedia.com/privacy",
+      "terms_url": "https://plugins.inneranimalmedia.com/terms",
       "repository_url": "https://github.com/SamPrimeaux/agentsam-plugin-mcp"
     },
     {
@@ -91,14 +91,14 @@ export const PUBLIC_PLUGIN_CATALOG = {
         "campaign.brief.save",
         "campaign.concept.save"
       ],
-      "endpoint_url": "https://agentsam-plugin-mcp.meauxbility.workers.dev/mcp/campaign",
-      "icon_url": "https://agentsam-plugin-mcp.meauxbility.workers.dev/catalog/icons/agentsam-campaign.png?v=1.0.0",
+      "endpoint_url": "https://plugins.inneranimalmedia.com/mcp/campaign",
+      "icon_url": "https://plugins.inneranimalmedia.com/catalog/icons/agentsam-campaign.png?v=1.0.0",
       "transport": "streamable-http",
       "auth_type": "oauth",
       "website_url": "https://agentsam.inneranimalmedia.com",
-      "support_url": "https://agentsam-plugin-mcp.meauxbility.workers.dev/support",
-      "privacy_url": "https://agentsam-plugin-mcp.meauxbility.workers.dev/privacy",
-      "terms_url": "https://agentsam-plugin-mcp.meauxbility.workers.dev/terms",
+      "support_url": "https://plugins.inneranimalmedia.com/support",
+      "privacy_url": "https://plugins.inneranimalmedia.com/privacy",
+      "terms_url": "https://plugins.inneranimalmedia.com/terms",
       "repository_url": "https://github.com/SamPrimeaux/agentsam-plugin-mcp"
     }
   ]
