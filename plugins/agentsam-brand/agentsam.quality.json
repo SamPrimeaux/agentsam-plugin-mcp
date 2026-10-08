@@ -1,0 +1,78 @@
+{
+  "schema": "agentsam.plugin-quality-evidence/v1",
+  "pluginId": "agentsam-brand",
+  "checks": {
+    "definition.manifest": {
+      "status": "pass",
+      "evidence": "Public plugin manifest/package checks pass in agentsam-plugin-mcp."
+    },
+    "package.resolve": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    },
+    "installation.catalog": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    },
+    "installation.account": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    },
+    "authorization.valid": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    },
+    "authorization.permissions": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    },
+    "runtime.mcp_reachable": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    },
+    "runtime.capabilities_discovered": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    },
+    "runtime.tools_executable": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    },
+    "health.probe": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    },
+    "product.smoke": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    },
+    "product.result_schema": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    },
+    "product.render": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    },
+    "persistence.round_trip": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    },
+    "security.least_privilege": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    },
+    "security.tenant_isolation": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    },
+    "portability.fresh_account": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    },
+    "portability.fresh_install": {
+      "status": "unverified",
+      "evidence": "Requires AgentSam plugin verify runtime or cross-repository evidence; static source is not accepted as proof."
+    }
+  }
+}
