@@ -30,7 +30,7 @@ describe('public plugin discovery', () => {
     const response = await app.request('/catalog/plugins');
     expect(response.status).toBe(200);
     expect(response.headers.get('access-control-allow-origin')).toBe('*');
-    const payload = await response.json() as {schema:string;plugins:Array<(typeof PUBLIC_PLUGIN_CATALOG.plugins)[number] & {tool_permissions:Array<{id:string;scopes:string[];read_only:boolean;requires_approval:boolean}>;oauth_resource:string;read_only_scopes:string[];oauth_scopes:string[]}>};
+    const payload = await response.json() as {schema:string;plugins:Array<(typeof PUBLIC_PLUGIN_CATALOG.plugins)[number] & {tool_permissions:Array<{id:string;title:string;scopes:string[];read_only:boolean;requires_approval:boolean}>;oauth_resource:string;read_only_scopes:string[];oauth_scopes:string[]}>};
     expect(payload.schema).toBe('agentsam.plugin-catalog/v1');
     expect(payload.plugins.map(p=>p.plugin_key)).toEqual(['agentsam-brand', 'agentsam-campaign']);
     for (const plugin of payload.plugins) {
@@ -42,6 +42,8 @@ describe('public plugin discovery', () => {
       expect(plugin.tool_count).toBeGreaterThan(0);
       expect(plugin.tools.length).toBe(plugin.tool_count);
       expect(plugin.tool_permissions.length).toBe(plugin.tool_count);
+      expect(plugin.capabilities).toEqual(plugin.tool_permissions.map(tool=>tool.title));
+      expect(plugin.tools).toEqual(plugin.tool_permissions.map(tool=>tool.id));
       expect(plugin.oauth_resource).toBe('https://plugins.inneranimalmedia.com/mcp');
       expect(plugin.read_only_scopes.length).toBeGreaterThan(0);
       expect(plugin.oauth_scopes.length).toBeGreaterThanOrEqual(plugin.read_only_scopes.length);
