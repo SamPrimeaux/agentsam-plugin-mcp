@@ -71,6 +71,7 @@ for (const entry of entries) {
     tools: toolIds,
     endpoint_url: endpoint.toString(),
     icon_url: endpoint.origin+'/catalog/icons/'+manifest.name+'.png?v='+encodeURIComponent(manifest.version),
+    publisher_icon_url: endpoint.origin+'/catalog/icons/agentsam.svg',
     transport: 'streamable-http',
     auth_type: 'oauth',
     website_url: String(i.websiteURL || manifest.homepage || ''),
