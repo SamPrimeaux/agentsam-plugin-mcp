@@ -14,6 +14,12 @@ export const BRAND_TOOL_INPUT_SCHEMAS = {
     scan: JsonObject,
     query: z.string().min(1)
   }),
+  "brand.contract.save": z.object({
+    contract: JsonObject.refine(value => Object.keys(value).length>0 && JSON.stringify(value).length<=65536, "Contract must be nonempty and at most 64 KB"),
+    evidence: z.array(z.unknown()).max(200).default([]),
+    approved: z.literal(true),
+    schemaVersion: z.string().min(1).max(36).default("1")
+  }),
   "brand.contract.draft": z.object({
     scan: JsonObject,
     brandId: z.string().min(1).optional()

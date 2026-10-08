@@ -29,6 +29,22 @@ export async function dispatchBrandTool(
       return inspectBrandAssetEvidence(args.scan as any, String(args.assetId || ""));
     case "brand.usage.find":
       return findBrandUsageEvidence(args.scan as any, String(args.query || ""));
+    case "brand.contract.save": {
+      if (args.approved !== true) throw new Error("brand_contract_approval_required");
+      const workspaceId = principal.workspaceId;
+      if (!workspaceId) throw new Error("workspace_required");
+      const contract=args.contract;
+      if (!contract || typeof contract !== "object" || Array.isArray(contract) ||
+          Object.keys(contract).length === 0) throw new Error("brand_contract_invalid");
+      // Store an immutable, explicitly approved revision in the existing
+      // workspace-scoped contract registry. No automatic publish/apply actions.
+      const id = "bct_" + crypto.randomUUID();
+      await env.DB.prepare(
+        "INSERT INTO public_brand_contracts (id,workspace_id,schema_version,status,contract_json,evidence_json,created_at,updated_at) VALUES (?1,?2,?3,'approved',?4,?5,unixepoch(),unixepoch())"
+      ).bind(id,workspaceId,String(args.schemaVersion||"1"),
+        JSON.stringify(contract),JSON.stringify(args.evidence||[])).run();
+      return {saved:true,id,workspaceId,status:"approved"};
+    }
     case "brand.contract.draft":
       return draftBrandContractFromEvidence(args.scan as any, {
         brandId: args.brandId ? String(args.brandId) : undefined

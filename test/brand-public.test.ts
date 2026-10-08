@@ -5,8 +5,8 @@ import {
 } from "../src/plugins/brand/schemas";
 
 describe("Brand public MCP schemas", () => {
-  it("covers all eight Brand tools", () => {
-    expect(Object.keys(BRAND_TOOL_INPUT_SCHEMAS)).toHaveLength(8);
+  it("covers all published Brand tools", () => {
+    expect(Object.keys(BRAND_TOOL_INPUT_SCHEMAS)).toHaveLength(9);
   });
 
   it("requires deterministic scan evidence for inspection", () => {

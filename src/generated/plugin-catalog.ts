@@ -5,7 +5,7 @@ export const PUBLIC_PLUGIN_CATALOG = {
   "plugins": [
     {
       "plugin_key": "agentsam-brand",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "display_name": "AgentSam Brand",
       "short_description": "Audit and govern your brand",
       "description": "Understand, define, review, and protect a real brand using authorized evidence from its assets, content, usage, and saved BrandContract context. AgentSam Brand separates observed facts from inferences and proposals, lowers confidence when evidence is missing, and does not silently redefine canonical brand decisions.",
@@ -23,7 +23,8 @@ export const PUBLIC_PLUGIN_CATALOG = {
         "Inspect brand assets",
         "Draft BrandContract context",
         "Review brand consistency",
-        "Plan brand improvements"
+        "Plan brand improvements",
+        "Save approved BrandContract"
       ],
       "example_prompts": [
         "Audit our current brand and tell me what is inconsistent.",
@@ -31,7 +32,7 @@ export const PUBLIC_PLUGIN_CATALOG = {
         "Draft a BrandContract from the evidence we already have."
       ],
       "skill_count": 5,
-      "tool_count": 8,
+      "tool_count": 9,
       "tools": [
         "brand.get_context",
         "brand.inspect",
@@ -40,10 +41,11 @@ export const PUBLIC_PLUGIN_CATALOG = {
         "brand.usage.find",
         "brand.contract.draft",
         "brand.consistency.evaluate",
+        "brand.contract.save",
         "brand.plan"
       ],
       "endpoint_url": "https://plugins.inneranimalmedia.com/mcp/brand",
-      "icon_url": "https://plugins.inneranimalmedia.com/catalog/icons/agentsam-brand.png?v=1.0.0",
+      "icon_url": "https://plugins.inneranimalmedia.com/catalog/icons/agentsam-brand.png?v=1.1.0",
       "publisher_icon_url": "https://plugins.inneranimalmedia.com/catalog/icons/agentsam.svg",
       "transport": "streamable-http",
       "auth_type": "oauth",
