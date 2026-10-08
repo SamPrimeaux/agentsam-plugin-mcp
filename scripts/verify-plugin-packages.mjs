@@ -44,6 +44,8 @@ function pngSize(file) {
 for (const root of roots) {
   const manifestPath = path.join(root, "plugin.json");
   const mcpPath = path.join(root, "mcp.json");
+  const productPath = path.join(root, "agentsam.product.json");
+  const qualityPath = path.join(root, "agentsam.quality.json");
   if (!fs.existsSync(manifestPath)) {
     fail(path.basename(root) + ": missing plugin.json");
     continue;
@@ -52,12 +54,42 @@ for (const root of roots) {
     fail(path.basename(root) + ": missing mcp.json");
     continue;
   }
+  if (!fs.existsSync(productPath)) {
+    fail(path.basename(root) + ": missing agentsam.product.json");
+    continue;
+  }
+  if (!fs.existsSync(qualityPath)) {
+    fail(path.basename(root) + ": missing agentsam.quality.json");
+    continue;
+  }
 
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   const mcp = JSON.parse(fs.readFileSync(mcpPath, "utf8"));
+  const product = JSON.parse(fs.readFileSync(productPath, "utf8"));
+  const quality = JSON.parse(fs.readFileSync(qualityPath, "utf8"));
   const ext = manifest.extensions?.["com.openai"];
   const ui = ext?.interface;
   const review = ext?.review;
+
+  if (product.schema !== "agentsam.plugin-product/v1") fail(manifest.name + ": wrong AgentSam product schema");
+  if (product.identity?.id !== manifest.name) fail(manifest.name + ": product identity must match plugin name");
+  if (product.identity?.version !== manifest.version) fail(manifest.name + ": product version must match plugin version");
+  if (!product.ownership?.domainPackage?.startsWith("@inneranimalmedia/")) fail(manifest.name + ": missing canonical domain package");
+  if (JSON.stringify(product.lifecycle?.states) !== JSON.stringify(["available","installed","needs_connection","connected","ready"])) {
+    fail(manifest.name + ": lifecycle must use canonical AgentSam states");
+  }
+  if (product.ready != null || product.connected != null || product.toolCount != null) {
+    fail(manifest.name + ": product definition must not persist runtime truth");
+  }
+  if (quality.schema !== "agentsam.plugin-quality-evidence/v1") fail(manifest.name + ": wrong quality evidence schema");
+  if (quality.pluginId !== manifest.name) fail(manifest.name + ": quality evidence pluginId mismatch");
+  const requiredChecks = product.verification?.requiredChecks || [];
+  if (!Array.isArray(requiredChecks) || requiredChecks.length < 1) fail(manifest.name + ": verification.requiredChecks required");
+  for (const id of requiredChecks) {
+    const status = quality.checks?.[id]?.status;
+    if (!["pass","fail","unverified","not_applicable"].includes(status)) fail(manifest.name + ": missing/invalid quality evidence for " + id);
+  }
+  if (product.release?.receiptRequired !== true) fail(manifest.name + ": quality receipt must be required");
 
   if (manifest.$schema !== "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json") fail(manifest.name + ": wrong plugin schema");
   if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(manifest.name || "") || String(manifest.name).length > 64) fail(manifest.name + ": invalid package name");
