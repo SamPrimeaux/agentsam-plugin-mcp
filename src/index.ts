@@ -4,7 +4,7 @@ import { healthRoute } from "./routes/health";
 import { oauthProtectedResourceRoute } from "./routes/oauth-metadata";
 import { handleMcp } from "./mcp/transport";
 import { privacyRoute, supportRoute, termsRoute } from "./routes/legal";
-import { PUBLIC_PLUGIN_CATALOG, PUBLIC_PLUGIN_ICONS } from "./generated/plugin-catalog";
+import { PUBLIC_PLUGIN_CATALOG, PUBLIC_PLUGIN_ICONS, PUBLIC_PUBLISHER_MARK_SVG } from "./generated/plugin-catalog";
 import { PUBLIC_TOOL_CATALOG } from "./mcp/catalog";
 
 const app = new Hono<{ Bindings: Env }>();
