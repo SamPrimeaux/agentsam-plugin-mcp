@@ -208,7 +208,10 @@ export async function authorizeOAuth(request: Request,env: Env) {
       try {
         await env.DB.prepare("INSERT INTO accounts (id,type,email,display_name,password_hash,status) VALUES (?,'human',?,?,?,'active')")
           .bind(accountId,email,email.split("@")[0],await hashedPassword(password)).run();
-      } catch { return failure("account_exists",409); }
+      } catch(error) {
+        console.warn("oauth_signup_insert_failed",String(error instanceof Error ? error.message : error).slice(0,180));
+        return failure("account_creation_unavailable",503);
+      }
       account={id:accountId,email,display_name:email.split("@")[0],status:"active"};
     } else {
       if (!account || account.status!=="active" || !await verifyPassword(password,String(account.password_hash||""))) {
