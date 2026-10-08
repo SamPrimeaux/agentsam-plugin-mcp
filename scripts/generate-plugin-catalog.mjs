@@ -13,6 +13,12 @@ const dest = path.join(root, 'src/generated/plugin-catalog.ts');
 const check = process.argv.includes('--check');
 const plugins = [];
 const icons = {};
+// First-party publisher mark: packaged SVG, not an arbitrary remote image.
+const publisherMarkSvg = fs.readFileSync(path.join(root, 'assets/agentsam-mark.svg'), 'utf8');
+if (publisherMarkSvg.length > 8000 || !/^<svg[\\s>]/.test(publisherMarkSvg.trim()) ||
+    /<script|<foreignObject|<image|<use|href=|url\(/i.test(publisherMarkSvg)) {
+  throw new Error('catalog_publisher_svg_invalid');
+}
 const routes = fs.readFileSync(path.join(root, 'src/index.ts'), 'utf8');
 const categories = new Set(['Productivity', 'Development', 'Design', 'Marketing', 'Data', 'Communication', 'Other']);
 const entries = fs.readdirSync(dir, { withFileTypes: true }).filter(e => e.isDirectory()).sort((a,b)=>a.name.localeCompare(b.name));
