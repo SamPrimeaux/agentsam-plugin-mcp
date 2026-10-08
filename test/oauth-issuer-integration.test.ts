@@ -93,6 +93,15 @@ describe("standalone AgentSam OAuth issuer",()=>{
       code_challenge:challenge(verifier),code_challenge_method:"S256",state:"test-state"};
     const consent=await request("/oauth/authorize?"+encode(query),env);
     expect(consent.status).toBe(200);
+    const chatgptCsp=consent.headers.get("content-security-policy")||"";
+    expect(chatgptCsp).toContain("form-action 'self' https://chatgpt.com");
+    expect(chatgptCsp).toContain("script-src 'none'");
+    expect(chatgptCsp).not.toContain("unsafe-inline' https://");
+    expect(chatgptCsp).not.toContain("https://evil.example");
+    const invalidCallback=await request("/oauth/authorize?"+encode({
+      ...query,redirect_uri:"https://evil.example/oauth/callback",
+    }),env);
+    expect(invalidCallback.status).toBe(400);
     const html=await consent.text();
     expect(html).toContain("ChatGPT Pilot");
     expect(html).toContain("campaign:read");
@@ -160,6 +169,9 @@ describe("standalone AgentSam OAuth issuer",()=>{
     const params={...query,login_hint:hint};
     const consent=await request("/oauth/authorize?"+encode(params),env);
     expect(consent.status).toBe(200);
+    const studioCsp=consent.headers.get("content-security-policy")||"";
+    expect(studioCsp).toContain("form-action 'self' https://agentsam.inneranimalmedia.com");
+    expect(studioCsp).not.toContain("https://evil.example");
     const html=await consent.text();
     expect(html).toContain("Studio User");
     expect(html).toContain("Authorize and return to Studio");
