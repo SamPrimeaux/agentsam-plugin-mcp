@@ -1,14 +1,10 @@
 export interface Env {
   DB: D1Database;
+  OAUTH_SIGNING_SECRET?: string;
   SERVICE_NAME: string;
   SERVICE_ENV: string;
   SERVICE_VERSION?: string;
   GIT_SHA?: string;
-  AGENTSAM_PUBLIC_ISSUER?: string;
-  AGENTSAM_PUBLIC_AUDIENCE?: string;
-  AGENTSAM_PUBLIC_JWKS_URL?: string;
-  AGENTSAM_PUBLIC_USERINFO_URL?: string;
-  AGENTSAM_PUBLIC_BASE_URL?: string;
 }
 
 export interface PublicPrincipal {

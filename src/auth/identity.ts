@@ -9,7 +9,7 @@ async function stableId(prefix: string, value: string) {
 }
 
 export async function resolveIdentityPrincipal(env: Env, payload: JWTPayload): Promise<PublicPrincipal> {
-  const issuer = String(payload.iss || env.AGENTSAM_PUBLIC_ISSUER || "");
+  const issuer = String(payload.iss || "");
   const subject = String(payload.sub || "");
   const providerKey = "oauth:" + issuer;
   const proposedProfileId = await stableId("prf", issuer + "|" + subject);

@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import type { Env } from "../types";
 
 export function resourceMetadataUrl(c: Context<{ Bindings: Env }>) {
-  const base = (c.env.AGENTSAM_PUBLIC_BASE_URL || new URL(c.req.url).origin).replace(/\/$/, "");
+  const base = new URL(c.req.url).origin.replace(/\/$/, "");
   return base + "/.well-known/oauth-protected-resource";
 }
 

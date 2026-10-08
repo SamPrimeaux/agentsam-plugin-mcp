@@ -12,6 +12,6 @@ function bearerToken(c: Context<{ Bindings: Env }>) {
 export async function resolvePrincipal(c: Context<{ Bindings: Env }>): Promise<PublicPrincipal | null> {
   const token = bearerToken(c);
   if (!token) return null;
-  const claims = await verifyPublicAccessToken(c.env, token);
+  const claims = await verifyPublicAccessToken(c.env, token, c.req.raw);
   return resolveIdentityPrincipal(c.env, claims);
 }
