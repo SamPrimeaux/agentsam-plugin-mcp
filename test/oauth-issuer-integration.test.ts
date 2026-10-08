@@ -13,7 +13,9 @@ class MemoryD1 {
   prepare(sql:string) {
     return {bind:(...args:any[])=>({
       first:async()=> {
-        if(sql.includes("FROM user_oauth_tokens")) return this.tokens.find(r=>r.provider===args[0]&&r.account_identifier===args[1]&&r.is_active===1)||null;
+        if(sql.includes("FROM user_oauth_tokens")) return this.tokens.find(r=>
+          r.provider===args[0]&&r.account_identifier===args[1]
+          &&(!sql.includes("is_active=1")||r.is_active===1))||null;
         if(sql.includes("FROM accounts WHERE email=")) return this.accounts.find(r=>r.email===args[0])||null;
         if(sql.includes("FROM accounts WHERE id=")) return this.accounts.find(r=>r.id===args[0])||null;
         return null;
@@ -39,6 +41,14 @@ class MemoryD1 {
         }
         if(sql.includes("UPDATE user_oauth_tokens SET is_active=0 WHERE provider=")) {
           this.tokens.filter(r=>r.provider===args[0]&&r.account_identifier===args[1]).forEach(r=>r.is_active=0);
+          return {meta:{changes:1}};
+        }
+        if(sql.includes("UPDATE user_oauth_tokens SET") && sql.includes("metadata_json=?")) {
+          const [metadata_json,user_id,provider,key]=args;
+          const rec=this.tokens.find(r=>r.user_id===user_id&&r.provider===provider&&
+            r.account_identifier===key&&r.is_active===1&&r.expires_at>Date.now()/1000);
+          if(!rec)return {meta:{changes:0}};
+          Object.assign(rec,{metadata_json,is_active:0,revoked_at:Math.floor(Date.now()/1000)});
           return {meta:{changes:1}};
         }
         if(sql.includes("UPDATE user_oauth_tokens SET is_active=0,revoked_at=")) {
@@ -93,7 +103,7 @@ describe("standalone AgentSam OAuth issuer",()=>{
       headers:{"content-type":"application/x-www-form-urlencoded","cookie":`__Host-ags_csrf=${csrf}`},
       body:encode({...query,_csrf:csrf!,email:"test.user@example.test",
         password:"Test-password-strong-123456",decision:"signup"})});
-    expect(approved.status).toBe(302);
+    expect(approved.status).toBe(303);
     expect(db.accounts).toHaveLength(1);
     expect(db.accounts[0].password_hash).toMatch(/^pbkdf2-sha256:100000:/);
     const redirect=new URL(approved.headers.get("location")!);
@@ -159,10 +169,19 @@ describe("standalone AgentSam OAuth issuer",()=>{
     const approved=await request("/oauth/authorize",env,{method:"POST",
       headers:{"content-type":"application/x-www-form-urlencoded","cookie":"__Host-ags_csrf="+csrf},
       body:encode({...params,_csrf:csrf,decision:"studio_approve"})});
-    expect(approved.status).toBe(302);
+    expect(approved.status).toBe(303);
     expect(db.accounts).toEqual([expect.objectContaining({
       id:subject,email:null,display_name:"Studio User",password_hash:null,
     })]);
+    expect(html).toContain("/catalog/icons/agentsam.svg");
+    expect(html).toContain('class="mark-icon"');
+    const repeated=await request("/oauth/authorize",env,{method:"POST",
+      headers:{"content-type":"application/x-www-form-urlencoded","cookie":"__Host-ags_csrf="+csrf},
+      body:encode({...params,_csrf:csrf,decision:"studio_approve"})});
+    expect(repeated.status).toBe(303);
+    expect(repeated.headers.get("location")).toEqual(approved.headers.get("location"));
+    expect(db.accounts).toHaveLength(1);
+    expect(db.tokens.filter(t=>t.provider==="agentsam_issuer_code")).toHaveLength(1);
     const code=new URL(approved.headers.get("location")!).searchParams.get("code")!;
     const token=await request("/oauth/token",env,{method:"POST",
       headers:{"content-type":"application/x-www-form-urlencoded"},
@@ -177,6 +196,7 @@ describe("standalone AgentSam OAuth issuer",()=>{
       headers:{"content-type":"application/x-www-form-urlencoded","cookie":"__Host-ags_csrf="+csrf},
       body:encode({...params,_csrf:csrf,decision:"studio_approve"})});
     expect(replay.status).toBe(401);
+    expect(await replay.text()).toContain("Start a fresh connection");
     const mismatch=await request("/oauth/authorize?"+encode({...params,state:"changed-state"}),env);
     expect(mismatch.status).toBe(401);
   });

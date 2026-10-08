@@ -128,6 +128,54 @@ export async function issueStudioHandoff(request:Request,env:Env) {
   return Response.json({login_hint:handoff,expires_in:540},{headers:{"cache-control":"no-store"}});
 }
 
+/** Encrypt the one-use post-approval redirect receipt, never persist a raw OAuth code. */
+async function receiptKey(env:Env) {
+  const root=secretKey(env);
+  const material=new Uint8Array(await crypto.subtle.digest("SHA-256",encode.encode("agentsam/studio-redirect-receipt/v1:"+new TextDecoder().decode(root))));
+  return crypto.subtle.importKey("raw",material,{name:"AES-GCM"},false,["encrypt","decrypt"]);
+}
+async function encryptReceipt(env:Env, code:string, handoffHash:string) {
+  const nonce=crypto.getRandomValues(new Uint8Array(12));
+  const encrypted=await crypto.subtle.encrypt({
+    name:"AES-GCM",iv:nonce,additionalData:encode.encode(handoffHash)
+  },await receiptKey(env),encode.encode(code));
+  return b64(nonce)+"."+b64(new Uint8Array(encrypted));
+}
+async function decryptReceipt(env:Env, data:string, handoffHash:string) {
+  try {
+    const parts=data.split(".");
+    if(parts.length!==2)return null;
+    const decrypted=await crypto.subtle.decrypt({
+      name:"AES-GCM",iv:decodeB64(parts[0]),additionalData:encode.encode(handoffHash)
+    },await receiptKey(env),decodeB64(parts[1]));
+    return new TextDecoder().decode(decrypted);
+  }catch{return null}
+}
+async function commitStudioApproval(env:Env, hint:string, linked:{record:Record<string,any>;meta:StudioIdentity}, code:string) {
+  const hash=await digest(hint);
+  const meta={...linked.meta,approval_receipt:await encryptReceipt(env,code,hash)};
+  const result=await env.DB.prepare(`UPDATE user_oauth_tokens SET
+    is_active=0,revoked_at=unixepoch(),updated_at=unixepoch(),metadata_json=?
+    WHERE user_id=? AND provider=? AND account_identifier=?
+    AND is_active=1 AND expires_at>unixepoch()`)
+    .bind(JSON.stringify(meta),String(linked.record.user_id),provider.studio,hash).run();
+  return Number(result.meta.changes||0)===1;
+}
+async function priorStudioApproval(env:Env, hint:string, auth:NonNullable<Awaited<ReturnType<typeof validatedAuth>>>) {
+  if(!/^[A-Za-z0-9_-]{40,80}$/.test(hint))return null;
+  const hash=await digest(hint);
+  const prior=await env.DB.prepare("SELECT * FROM user_oauth_tokens WHERE provider=? AND account_identifier=? LIMIT 1")
+    .bind(provider.studio,hash).first<Record<string,any>>();
+  if(!prior||Number(prior.is_active)!==0||Number(prior.revoked_at)<=0
+    ||now()-Number(prior.revoked_at)>120||Number(prior.expires_at)<=now())return null;
+  const meta=JSON.parse(String(prior.metadata_json||"{}")) as StudioIdentity&{approval_receipt?:string};
+  if(!matchedStudioHandoff(meta,auth)||!meta.approval_receipt)return null;
+  const code=await decryptReceipt(env,meta.approval_receipt,hash);
+  if(!code)return null;
+  const pending=await row(env,provider.code,await digest(code));
+  return pending&&Number(pending.expires_at)>now()?code:null;
+}
+
 async function hashedPassword(password: string, salt?: Uint8Array) {
   const currentSalt = salt || crypto.getRandomValues(new Uint8Array(24));
   const key = await crypto.subtle.importKey("raw",encode.encode(password),"PBKDF2",false,["deriveBits"]);
@@ -173,7 +221,7 @@ async function validatedAuth(env: Env, values: URLSearchParams, request: Request
   if ((values.get("state")||"").length > 512) return null;
   return {clientId,client,redirect,scopes,challenge,resource,state:values.get("state")||""};
 }
-const oauthHeaders = {"cache-control":"no-store","content-security-policy":"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'","x-content-type-options":"nosniff"};
+const oauthHeaders = {"cache-control":"no-store","content-security-policy":"default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'","x-content-type-options":"nosniff"};
 export function oauthMetadata(request: Request) {
   const issuer=baseFor(request);
   return Response.json({
@@ -219,10 +267,12 @@ function consentHtml(auth: NonNullable<Awaited<ReturnType<typeof validatedAuth>>
     .map(([key,value])=>`<input type="hidden" name="${htmlEscape(key)}" value="${htmlEscape(value)}">`).join("");
   const clientName=htmlEscape(auth.client.client_name||"Connected application");
   const studio=Boolean(linked);
+  const initials=(linked?.display_name||"").trim().split(/\s+/)
+    .slice(0,2).map(part=>part.charAt(0).toUpperCase()).join("")||"•";
   const label=auth.scopes.some(s=>s.startsWith("campaign:"))?"Campaign":
               auth.scopes.some(s=>s.startsWith("brand:"))?"Brand":"Plugin";
   const title=studio?`Connect AgentSam ${label}`:`Authorize AgentSam ${label}`;
-  const identity=studio?`<div class="identity"><span class="avatar">AS</span><span>
+  const identity=studio?`<div class="identity"><span class="avatar">${htmlEscape(initials)}</span><span>
       <strong>${htmlEscape(linked?.display_name||"AgentSam account")}</strong>
       <small>Signed in to AgentSam Studio${linked?.email?` · ${htmlEscape(linked.email)}`:""}</small></span>
       <span class="verified" aria-label="Verified Studio session">✓</span></div>`:`
@@ -246,7 +296,10 @@ function consentHtml(auth: NonNullable<Awaited<ReturnType<typeof validatedAuth>>
     box-shadow:0 24px 90px #0007;border-radius:22px;padding:30px}
     .brand{display:flex;align-items:center;gap:10px;color:#c7c1d4;font-size:12px;letter-spacing:.025em;font-weight:600}
     .mark{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;
-    background:#7b39e7;color:#fff;font-size:13px;font-weight:800}
+    background:#7b39e7;color:#fff}
+    .mark-icon{width:25px;height:23px;display:block;background:currentColor;
+    -webkit-mask:url('/catalog/icons/agentsam.svg') center / contain no-repeat;
+    mask:url('/catalog/icons/agentsam.svg') center / contain no-repeat}
     h1{margin:24px 0 8px;font-size:25px;line-height:1.23;letter-spacing:-.6px}
     .subtitle{color:#a9a5b7;margin:0 0 24px}.scope-head{display:flex;justify-content:space-between;
     color:#eeeaf6;font-size:13px;font-weight:650;margin:22px 0 10px}.count{color:#9690a7;font-weight:500}
@@ -272,7 +325,7 @@ function consentHtml(auth: NonNullable<Awaited<ReturnType<typeof validatedAuth>>
     .foot{font-size:11px;color:#858092;margin:20px 0 0}.error{padding:10px;border-radius:9px;
     background:#3b1c28;color:#ffb9c7;margin:14px 0}a{color:#bca1ff}
     @media(max-width:500px){body{padding:12px}main{border-radius:16px;padding:21px}h1{font-size:23px}}
-    </style></head><body><main><div class="brand"><span class="mark">AS</span> AGENTSAM <span aria-hidden="true">/</span> CONNECTIONS</div>
+    </style></head><body><main><div class="brand"><span class="mark"><span class="mark-icon" role="img" aria-label="AgentSam"></span></span> AGENTSAM <span aria-hidden="true">/</span> CONNECTIONS</div>
     <h1>${title}</h1><p class="subtitle">${studio?"Your Studio session is verified. Review what you're sharing before continuing.":`Connect ${clientName} to your AgentSam workspace.`}</p>
     ${identity}${error?`<div role="alert" class="error">${htmlEscape(error)}</div>`:""}
     <div class="scope-head"><span>Requested permissions</span><span class="count">${auth.scopes.length} permissions</span></div>
@@ -282,6 +335,33 @@ function consentHtml(auth: NonNullable<Awaited<ReturnType<typeof validatedAuth>>
     <div class="actions">${actions}</div></form>
     <p class="foot">Connecting ${clientName}. Approval grants only the permissions shown above.
     You can disconnect from Studio Settings at any time.</p></main></body></html>`;
+}
+function expiredStudioConsent(auth:NonNullable<Awaited<ReturnType<typeof validatedAuth>>>) {
+  const back=new URL("/settings/customize?view=plugins",auth.redirect).href;
+  const html=`<!doctype html><html lang="en"><head><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Connection needs a fresh approval · AgentSam</title>
+  <style>*{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;
+    background:radial-gradient(ellipse at 50% 18%,#4a25963b,transparent 70%),#090a10;
+    color:#f7f5fb;font:15px/1.6 system-ui,-apple-system,sans-serif;padding:16px}
+  main{width:min(100%,460px);background:#15141d;border:1px solid #3c3649;
+    border-radius:20px;padding:30px;box-shadow:0 24px 70px #0008}
+  .brand{display:flex;align-items:center;gap:10px;color:#c8bed8;font-size:12px;font-weight:700}
+  .mark{display:block;width:32px;height:32px;background:#bc9cfa;
+    -webkit-mask:url('/catalog/icons/agentsam.svg') center / contain no-repeat;
+    mask:url('/catalog/icons/agentsam.svg') center / contain no-repeat}
+  h1{font-size:23px;line-height:1.3;letter-spacing:-.3px;margin:24px 0 8px}
+  p{color:#bcb4c8;margin:0 0 20px}
+  a{display:block;text-align:center;text-decoration:none;background:#8546ef;color:white;
+    border-radius:10px;padding:12px;font-weight:700}
+  a:focus-visible{outline:2px solid #fff;outline-offset:4px}
+  </style></head><body><main><div class="brand"><span class="mark" role="img" aria-label="AgentSam"></span>
+    AGENTSAM / CONNECTIONS</div><h1>Start a fresh connection</h1>
+    <p>This approval link has already been used or has expired. Return to AgentSam Studio
+      and select Connect again. Your account remains signed in.</p>
+    <a href="${htmlEscape(back)}">Return to Studio Settings →</a></main></body></html>`;
+  return new Response(html,{status:401,headers:{...oauthHeaders,
+    "content-type":"text/html; charset=utf-8"}});
 }
 function callbackUrl(auth: NonNullable<Awaited<ReturnType<typeof validatedAuth>>>, value: Record<string,string>) {
   const u=new URL(auth.redirect);
@@ -297,18 +377,25 @@ export async function authorizeOAuth(request: Request,env: Env) {
   if(!auth) return failure("invalid_request");
   const hint=params.get("login_hint");
   const linked=hint?await studioHandoff(env,hint,auth):null;
-  if(hint&&!linked)return failure("studio_connection_expired",401);
+  if(hint&&!linked) {
+    if(post&&params.get("decision")==="studio_approve") {
+      const cookie=/(?:^|;\s*)__Host-ags_csrf=([^;]+)/.exec(request.headers.get("cookie")||"")?.[1];
+      if(!cookie||cookie!==params.get("_csrf")||! /^[A-Za-z0-9_-]{40,55}$/.test(cookie))
+        return failure("invalid_csrf",403);
+      const code=await priorStudioApproval(env,hint,auth);
+      if(code)return Response.redirect(callbackUrl(auth,{code}),303);
+    }
+    return expiredStudioConsent(auth);
+  }
   if (post) {
     const decision=params.get("decision");
-    if(decision==="deny") return Response.redirect(callbackUrl(auth,{error:"access_denied"}),302);
+    if(decision==="deny") return Response.redirect(callbackUrl(auth,{error:"access_denied"}),303);
     const cookie=/(?:^|;\s*)__Host-ags_csrf=([^;]+)/.exec(request.headers.get("cookie")||"")?.[1];
     if(!cookie || cookie!==params.get("_csrf") || !/^[A-Za-z0-9_-]{40,55}$/.test(cookie))
       return failure("invalid_csrf",403);
     let account:any;
     if (linked) {
       if(decision!=="studio_approve")return failure("invalid_decision");
-      if(!await consume(env,provider.studio,await digest(hint!),String(linked.record.user_id)))
-        return failure("studio_connection_expired",401);
       const identity=linked.meta;
       // Mirror the *existing Studio account ID* for plugin workspace storage;
       // no password, separate signup, or additional login is created.
@@ -354,7 +441,13 @@ export async function authorizeOAuth(request: Request,env: Env) {
     await save(env,provider.code,await digest(code),String(account.id),{
       client_id:auth.clientId,redirect_uri:auth.redirect,resource:auth.resource,code_challenge:auth.challenge
     },now()+CODE_SECONDS,auth.scopes.join(" "));
-    return Response.redirect(callbackUrl(auth,{code}),302);
+    if(linked&&!await commitStudioApproval(env,hint!,linked,code)) {
+      const original=await priorStudioApproval(env,hint!,auth);
+      if(!original)return failure("studio_connection_expired",401);
+      return Response.redirect(callbackUrl(auth,{code:original}),303);
+    }
+    // POST/Redirect/GET: 303 avoids a browser re-POSTing consent on navigation.
+    return Response.redirect(callbackUrl(auth,{code}),303);
   }
   const csrf=randomToken();
   return new Response(consentHtml(auth,csrf,params,linked?.meta),{headers:{
