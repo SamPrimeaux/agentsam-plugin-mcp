@@ -221,7 +221,22 @@ async function validatedAuth(env: Env, values: URLSearchParams, request: Request
   if ((values.get("state")||"").length > 512) return null;
   return {clientId,client,redirect,scopes,challenge,resource,state:values.get("state")||""};
 }
-const oauthHeaders = {"cache-control":"no-store","content-security-policy":"default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'","x-content-type-options":"nosniff"};
+const oauthHeaders = {"cache-control":"no-store","content-security-policy":"default-src 'none'; script-src 'none'; img-src 'self'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'","x-content-type-options":"nosniff"};
+/**
+ * A form submission may 303-redirect to the client callback. Browsers apply
+ * form-action to that redirect too, so 'self' alone blocks successful OAuth.
+ * Only add the origin of the redirect URI already validated against the
+ * registered client; never use an untrusted request-supplied origin.
+ */
+function consentPageHeaders(auth:NonNullable<Awaited<ReturnType<typeof validatedAuth>>>) {
+  const callbackOrigin=new URL(auth.redirect).origin;
+  return {
+    ...oauthHeaders,
+    "content-security-policy":oauthHeaders["content-security-policy"].replace(
+      "form-action 'self'", "form-action 'self' "+callbackOrigin,
+    ),
+  };
+}
 export function oauthMetadata(request: Request) {
   const issuer=baseFor(request);
   return Response.json({
@@ -451,7 +466,7 @@ export async function authorizeOAuth(request: Request,env: Env) {
   }
   const csrf=randomToken();
   return new Response(consentHtml(auth,csrf,params,linked?.meta),{headers:{
-    ...oauthHeaders,"content-type":"text/html; charset=utf-8",
+    ...consentPageHeaders(auth),"content-type":"text/html; charset=utf-8",
     "set-cookie":`__Host-ags_csrf=${csrf}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=600`
   }});
 }
