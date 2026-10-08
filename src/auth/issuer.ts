@@ -25,7 +25,7 @@ const challengeFor = async (verifier: string) => btoa(String.fromCharCode(
 const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
 const htmlEscape = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, c =>
   ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[c] || c);
-const supported = () => [...new Set(PUBLIC_TOOL_CATALOG.flatMap(t => t.scopes))].sort();
+const supported = () => [...new Set(["offline_access",...PUBLIC_TOOL_CATALOG.flatMap(t => t.scopes)])].sort();
 const failure = (error: string, status = 400) => Response.json({error}, {status, headers:{"cache-control":"no-store"}});
 const secretKey = (env: Env) => {
   if (!env.OAUTH_SIGNING_SECRET || env.OAUTH_SIGNING_SECRET.length < 48) throw new Error("oauth_signing_secret_unavailable");
@@ -144,7 +144,7 @@ export async function registerOAuthClient(request: Request,env: Env) {
 function consentHtml(auth: NonNullable<Awaited<ReturnType<typeof validatedAuth>>>, csrf: string, params: URLSearchParams, error="") {
   const labels=new Map(PUBLIC_TOOL_CATALOG.flatMap(t=>t.scopes.map(scope=>[scope,{label:scope,description:t.description}] as const)));
   const scopeMarkup=auth.scopes.map(scope=>{
-    const description=labels.get(scope)?.description||scope;
+    const description=scope==="offline_access"?"Keep this connection active using refresh tokens.":(labels.get(scope)?.description||scope);
     const write=scope.includes(":write");
     return `<li><span class="perm ${write?"write":"read"}">${write?"Write":"Read"}</span> <strong>${htmlEscape(scope)}</strong><small>${htmlEscape(description)}</small></li>`;
   }).join("");

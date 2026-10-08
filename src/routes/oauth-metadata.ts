@@ -3,7 +3,7 @@ import type { Env } from "../types";
 
 import { PUBLIC_TOOL_CATALOG } from "../mcp/catalog";
 
-export const PUBLIC_SCOPES = [...new Set(PUBLIC_TOOL_CATALOG.flatMap(t=>t.scopes))].sort();
+export const PUBLIC_SCOPES = [...new Set(["offline_access",...PUBLIC_TOOL_CATALOG.flatMap(t=>t.scopes)])].sort();
 
 export async function oauthProtectedResourceRoute(c: Context<{ Bindings: Env }>) {
   const base = new URL(c.req.url).origin;

@@ -63,6 +63,7 @@ describe("standalone AgentSam OAuth issuer",()=>{
     expect(as.registration_endpoint).toBe(origin+"/oauth/register");
     expect(pr.authorization_servers).toEqual([origin]);
     expect(pr.scopes_supported).toEqual(as.scopes_supported);
+    expect(as.scopes_supported).toContain("offline_access");
   });
 
   it("registers a client, requires consent, enforces PKCE, rotates refresh, and denies code replay",async()=>{
