@@ -11,7 +11,8 @@ const AUDIENCE_PATH = "/mcp";
 const ACCESS_SECONDS = 900;
 const REFRESH_SECONDS = 30 * 86400;
 const CODE_SECONDS = 600;
-const ITERATIONS = 160000;
+// Cloudflare Workers WebCrypto rejects PBKDF2 counts above 100,000.
+const ITERATIONS = 100000;
 const encode = new TextEncoder();
 const now = () => Math.floor(Date.now() / 1000);
 const id = (prefix: string) => prefix + crypto.randomUUID().replaceAll("-", "");
