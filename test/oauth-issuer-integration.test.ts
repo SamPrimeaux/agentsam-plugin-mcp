@@ -90,6 +90,7 @@ describe("standalone AgentSam OAuth issuer",()=>{
         password:"Test-password-strong-123456",decision:"signup"})});
     expect(approved.status).toBe(302);
     expect(db.accounts).toHaveLength(1);
+    expect(db.accounts[0].password_hash).toMatch(/^pbkdf2-sha256:100000:/);
     const redirect=new URL(approved.headers.get("location")!);
     expect(redirect.origin).toBe("https://chatgpt.com");
     const code=redirect.searchParams.get("code");
