@@ -13,6 +13,12 @@ const dest = path.join(root, 'src/generated/plugin-catalog.ts');
 const check = process.argv.includes('--check');
 const plugins = [];
 const icons = {};
+// First-party publisher mark: packaged SVG, not an arbitrary remote image.
+const publisherMarkSvg = fs.readFileSync(path.join(root, 'assets/agentsam-mark.svg'), 'utf8');
+if (publisherMarkSvg.length > 8000 || !/^<svg[\s>]/.test(publisherMarkSvg.trim()) ||
+    /<script|<foreignObject|<image|<use|href=|url\(/i.test(publisherMarkSvg)) {
+  throw new Error('catalog_publisher_svg_invalid');
+}
 const routes = fs.readFileSync(path.join(root, 'src/index.ts'), 'utf8');
 const categories = new Set(['Productivity', 'Development', 'Design', 'Marketing', 'Data', 'Communication', 'Other']);
 const entries = fs.readdirSync(dir, { withFileTypes: true }).filter(e => e.isDirectory()).sort((a,b)=>a.name.localeCompare(b.name));
@@ -65,6 +71,7 @@ for (const entry of entries) {
     tools: toolIds,
     endpoint_url: endpoint.toString(),
     icon_url: endpoint.origin+'/catalog/icons/'+manifest.name+'.png?v='+encodeURIComponent(manifest.version),
+    publisher_icon_url: endpoint.origin+'/catalog/icons/agentsam.svg',
     transport: 'streamable-http',
     auth_type: 'oauth',
     website_url: String(i.websiteURL || manifest.homepage || ''),
@@ -79,7 +86,7 @@ const catalog = {
   publisher: 'Inner Animal Media',
   plugins,
 };
-const result = '/** Generated from packaged plugin manifests; do not edit. */\nexport const PUBLIC_PLUGIN_CATALOG = '+JSON.stringify(catalog,null,2)+' as const;\nexport const PUBLIC_PLUGIN_ICONS: Record<string,string> = '+JSON.stringify(icons,null,2)+';\n';
+const result = '/** Generated from packaged plugin manifests; do not edit. */\nexport const PUBLIC_PLUGIN_CATALOG = '+JSON.stringify(catalog,null,2)+' as const;\nexport const PUBLIC_PLUGIN_ICONS: Record<string,string> = '+JSON.stringify(icons,null,2)+';\nexport const PUBLIC_PUBLISHER_MARK_SVG = '+JSON.stringify(publisherMarkSvg)+';\n';
 if (check) {
   if (!fs.existsSync(dest) || fs.readFileSync(dest,'utf8') !== result) {
     console.error('plugin catalog drift: run npm run catalog:generate');

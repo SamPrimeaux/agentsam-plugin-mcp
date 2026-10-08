@@ -15,6 +15,17 @@ describe('public plugin discovery', () => {
     expect(missing.status).toBe(404);
   });
 
+  it('serves a packaged, script-free AgentSam SVG publisher mark', async () => {
+    const response = await app.request('/catalog/icons/agentsam.svg');
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('image/svg+xml');
+    const svg = await response.text();
+    expect(svg).toContain('viewBox="0 0 691.728 489.792"');
+    expect(svg).toContain('fill="currentColor"');
+    expect(svg).not.toMatch(/<script|<foreignObject|href=/i);
+    expect((await app.request('/catalog/icons/other.svg')).status).toBe(404);
+  });
+
   it('serves the generated catalog without login or secrets', async () => {
     const response = await app.request('/catalog/plugins');
     expect(response.status).toBe(200);
@@ -25,6 +36,7 @@ describe('public plugin discovery', () => {
     for (const plugin of payload.plugins) {
       expect(plugin.endpoint_url).toMatch(/^https:\/\//);
       expect(plugin.auth_type).toBe('oauth');
+      expect(plugin.publisher_icon_url).toBe('https://plugins.inneranimalmedia.com/catalog/icons/agentsam.svg');
       expect(plugin.example_prompts.length).toBeGreaterThan(0);
       expect(plugin.capabilities.length).toBeGreaterThan(0);
       expect(plugin.tool_count).toBeGreaterThan(0);
