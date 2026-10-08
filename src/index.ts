@@ -34,6 +34,16 @@ app.get("/catalog/plugins", (c) => c.json({
   "Cache-Control": "public, max-age=120",
   "X-Content-Type-Options": "nosniff",
 }));
+// Publisher mark is a safe, packaged vector asset. CSS masks can tint it per theme.
+app.get("/catalog/icons/agentsam.svg", () => new Response(PUBLIC_PUBLISHER_MARK_SVG, {
+  headers: {
+    "Content-Type": "image/svg+xml; charset=utf-8",
+    "Cache-Control": "public, max-age=3600",
+    "Content-Security-Policy": "default-src 'none'; script-src 'none'; style-src 'none'; sandbox",
+    "X-Content-Type-Options": "nosniff",
+    "Access-Control-Allow-Origin": "*",
+  },
+}));
 app.get("/catalog/icons/:file", (c) => {
   const file = c.req.param("file");
   const id = file.endsWith(".png") ? file.slice(0, -4) : "";
