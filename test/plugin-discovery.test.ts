@@ -36,6 +36,7 @@ describe('public plugin discovery', () => {
     for (const plugin of payload.plugins) {
       expect(plugin.endpoint_url).toMatch(/^https:\/\//);
       expect(plugin.auth_type).toBe('oauth');
+      expect(plugin.publisher_icon_url).toBe('https://plugins.inneranimalmedia.com/catalog/icons/agentsam.svg');
       expect(plugin.example_prompts.length).toBeGreaterThan(0);
       expect(plugin.capabilities.length).toBeGreaterThan(0);
       expect(plugin.tool_count).toBeGreaterThan(0);
