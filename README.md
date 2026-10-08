@@ -206,7 +206,14 @@ The broader plugin lifecycle, OAuth completion, additional skills, optional MCP 
 
 Public, read-only discovery is available at GET /catalog/plugins, generated entirely from
 the real plugin.json and mcp.json manifests, registered routes, tool definitions and skill
-directories in plugins/. Logos are served from validated packaged assets at /catalog/icons/:file.
+directories in plugins/. Product logos are served from validated packaged PNG assets at
+`/catalog/icons/:file`; first-party publisher identity is packaged as
+`/catalog/icons/agentsam.svg` and published as each catalog entry's `publisher_icon_url`.
+The publisher SVG is independent from Brand/Campaign product icons. It uses the original
+AgentSam vector geometry with `fill="currentColor"`; when loaded externally, tint it with
+a CSS `mask-image` and `background-color: currentColor` (plain `<img>` does not inherit CSS
+color from the parent). The catalog renderer permits only its own registered icon routes;
+never accept an arbitrary remote SVG URL as a trusted publisher mark.
 
 Add a draft with:
 
