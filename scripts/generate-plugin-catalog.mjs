@@ -15,7 +15,7 @@ const plugins = [];
 const icons = {};
 // First-party publisher mark: packaged SVG, not an arbitrary remote image.
 const publisherMarkSvg = fs.readFileSync(path.join(root, 'assets/agentsam-mark.svg'), 'utf8');
-if (publisherMarkSvg.length > 8000 || !/^<svg[\\s>]/.test(publisherMarkSvg.trim()) ||
+if (publisherMarkSvg.length > 8000 || !/^<svg[\s>]/.test(publisherMarkSvg.trim()) ||
     /<script|<foreignObject|<image|<use|href=|url\(/i.test(publisherMarkSvg)) {
   throw new Error('catalog_publisher_svg_invalid');
 }
