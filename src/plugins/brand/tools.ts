@@ -79,6 +79,17 @@ export const BRAND_PUBLIC_TOOLS: readonly PublicToolDefinition[] = [
     openWorldHint: false
   },
   {
+    id: "brand.contract.save",
+    plugin: "agentsam-brand",
+    title: "Save approved BrandContract",
+    description: "Persist an explicitly reviewed BrandContract as a new workspace version without altering live assets, sites, or published branding.",
+    scopes: ["brand:contract:write"],
+    risk: "write",
+    readOnlyHint: false,
+    destructiveHint: false,
+    openWorldHint: false
+  },
+  {
     id: "brand.plan",
     plugin: "agentsam-brand",
     title: "Build brand plan",

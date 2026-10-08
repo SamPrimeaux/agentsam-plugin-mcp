@@ -22,6 +22,7 @@ describe("public MCP catalog", () => {
       .sort();
 
     expect(writable).toEqual([
+      "brand.contract.save",
       "campaign.brief.save",
       "campaign.concept.save"
     ]);

@@ -2,7 +2,7 @@
   "schema": "agentsam.plugin-product/v1",
   "identity": {
     "id": "agentsam-brand",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "publisher": "Inner Animal Media"
   },
   "ownership": {
@@ -80,6 +80,13 @@
       ]
     },
     {
+      "id": "brand.contract.save",
+      "risk": "write",
+      "permissions": [
+        "brand:contract:write"
+      ]
+    },
+    {
       "id": "brand.consistency.evaluate",
       "risk": "read",
       "permissions": [
@@ -100,6 +107,7 @@
     "declared": [
       "brand:assets:read",
       "brand:contract:read",
+      "brand:contract:write",
       "brand:read"
     ]
   },
