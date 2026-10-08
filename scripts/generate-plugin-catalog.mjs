@@ -86,7 +86,7 @@ const catalog = {
   publisher: 'Inner Animal Media',
   plugins,
 };
-const result = '/** Generated from packaged plugin manifests; do not edit. */\nexport const PUBLIC_PLUGIN_CATALOG = '+JSON.stringify(catalog,null,2)+' as const;\nexport const PUBLIC_PLUGIN_ICONS: Record<string,string> = '+JSON.stringify(icons,null,2)+';\n';
+const result = '/** Generated from packaged plugin manifests; do not edit. */\nexport const PUBLIC_PLUGIN_CATALOG = '+JSON.stringify(catalog,null,2)+' as const;\nexport const PUBLIC_PLUGIN_ICONS: Record<string,string> = '+JSON.stringify(icons,null,2)+';\nexport const PUBLIC_PUBLISHER_MARK_SVG = '+JSON.stringify(publisherMarkSvg)+';\n';
 if (check) {
   if (!fs.existsSync(dest) || fs.readFileSync(dest,'utf8') !== result) {
     console.error('plugin catalog drift: run npm run catalog:generate');
