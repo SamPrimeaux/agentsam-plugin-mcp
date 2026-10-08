@@ -26,6 +26,11 @@ class MemoryD1 {
           else this.tokens.push({user_id,provider,account_identifier,expires_at,scope,metadata_json,is_active:1});
           return {meta:{changes:1}};
         }
+        if(sql.includes("INSERT OR IGNORE INTO accounts")) {
+          const [id,display_name]=args;
+          if(!this.accounts.some(r=>r.id===id))this.accounts.push({id,email:null,display_name,password_hash:null,status:"active"});
+          return {meta:{changes:1}};
+        }
         if(sql.includes("INSERT INTO accounts")) {
           const [id,email,display_name,password_hash]=args;
           if(this.accounts.some(r=>r.email===email))throw Error("duplicate account");
@@ -49,7 +54,7 @@ class MemoryD1 {
 }
 function fixture(){
   const db=new MemoryD1();
-  return {db,env:{DB:db as any,SERVICE_NAME:"agentsam-plugin-mcp",SERVICE_ENV:"test",OAUTH_SIGNING_SECRET:secret} satisfies Env};
+  return {db,env:{DB:db as any,SERVICE_NAME:"agentsam-plugin-mcp",SERVICE_ENV:"test",OAUTH_SIGNING_SECRET:secret,STUDIO_HANDOFF_SECRET:"shared-studio-handoff-test-secret-9876543210-extra-long"} satisfies Env};
 }
 const encode=(data:Record<string,string>)=>new URLSearchParams(data).toString();
 const challenge=(verifier:string)=>createHash("sha256").update(verifier).digest("base64url");
@@ -119,5 +124,60 @@ describe("standalone AgentSam OAuth issuer",()=>{
       headers:{"content-type":"application/x-www-form-urlencoded"},
       body:encode({grant_type:"refresh_token",client_id:client.client_id,refresh_token:tokens.refresh_token})});
     expect(replayRefresh.status).toBe(400);
+  });
+
+  it("uses the current Studio session for consent without requesting another password",async()=>{
+    const {env,db}=fixture();
+    const redirect="https://agentsam.inneranimalmedia.com/api/plugins/oauth/callback";
+    const register=await request("/oauth/register",env,{method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({client_name:"AgentSam Studio",redirect_uris:[redirect]})});
+    const client=await read(register);
+    const verifier=randomBytes(40).toString("base64url");
+    const subject="au_"+"a".repeat(22);
+    const query={client_id:client.client_id,response_type:"code",redirect_uri:redirect,
+      resource:origin+"/mcp",scope:"campaign:read",state:randomBytes(32).toString("base64url"),
+      code_challenge:challenge(verifier),code_challenge_method:"S256"};
+    const assertion={user_id:subject,display_name:"Studio User",email:"studio@example.test",...query};
+    const noAuth=await request("/oauth/studio/handoff",env,{method:"POST",
+      headers:{"content-type":"application/json"},body:JSON.stringify(assertion)});
+    expect(noAuth.status).toBe(401);
+    const bridge=await request("/oauth/studio/handoff",env,{method:"POST",
+      headers:{"content-type":"application/json",
+        "x-agentsam-studio-handoff-secret":env.STUDIO_HANDOFF_SECRET!},
+      body:JSON.stringify(assertion)});
+    expect(bridge.status).toBe(200);
+    const hint=(await read(bridge)).login_hint;
+    const params={...query,login_hint:hint};
+    const consent=await request("/oauth/authorize?"+encode(params),env);
+    expect(consent.status).toBe(200);
+    const html=await consent.text();
+    expect(html).toContain("Studio User");
+    expect(html).toContain("Authorize and return to Studio");
+    expect(html).not.toContain('id="password"');
+    expect(db.accounts).toHaveLength(0);
+    const csrf=html.match(/name="_csrf" value="([^"]+)"/)?.[1]!;
+    const approved=await request("/oauth/authorize",env,{method:"POST",
+      headers:{"content-type":"application/x-www-form-urlencoded","cookie":"__Host-ags_csrf="+csrf},
+      body:encode({...params,_csrf:csrf,decision:"studio_approve"})});
+    expect(approved.status).toBe(302);
+    expect(db.accounts).toEqual([expect.objectContaining({
+      id:subject,email:null,display_name:"Studio User",password_hash:null,
+    })]);
+    const code=new URL(approved.headers.get("location")!).searchParams.get("code")!;
+    const token=await request("/oauth/token",env,{method:"POST",
+      headers:{"content-type":"application/x-www-form-urlencoded"},
+      body:encode({grant_type:"authorization_code",client_id:client.client_id,code,
+        code_verifier:verifier,redirect_uri:redirect,resource:query.resource})});
+    expect(token.status).toBe(200);
+    const bearer=(await read(token)).access_token;
+    const user=await read(await request("/oauth/userinfo",env,{
+      headers:{authorization:"Bearer "+bearer}}));
+    expect(user.sub).toBe(subject);
+    const replay=await request("/oauth/authorize",env,{method:"POST",
+      headers:{"content-type":"application/x-www-form-urlencoded","cookie":"__Host-ags_csrf="+csrf},
+      body:encode({...params,_csrf:csrf,decision:"studio_approve"})});
+    expect(replay.status).toBe(401);
+    const mismatch=await request("/oauth/authorize?"+encode({...params,state:"changed-state"}),env);
+    expect(mismatch.status).toBe(401);
   });
 });
