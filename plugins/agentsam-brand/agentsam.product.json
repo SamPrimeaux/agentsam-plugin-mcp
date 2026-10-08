@@ -1,0 +1,149 @@
+{
+  "schema": "agentsam.plugin-product/v1",
+  "identity": {
+    "id": "agentsam-brand",
+    "version": "1.0.0",
+    "publisher": "Inner Animal Media"
+  },
+  "ownership": {
+    "domainPackage": "@inneranimalmedia/agentsam-brand",
+    "owns": [
+      "brand intelligence",
+      "brand schemas",
+      "brand policy",
+      "brand presentation"
+    ],
+    "platformAuthorities": [
+      "identity.oauth",
+      "vault.credentials",
+      "settings.plugin-installation",
+      "plugin-runtime.mcp",
+      "hooks.mcp-adaptation",
+      "capability.runtime",
+      "repository.evidence",
+      "machine.perception",
+      "plugin-runtime.health",
+      "plugin-runtime.receipts",
+      "plugin-runtime.retry"
+    ]
+  },
+  "resources": [
+    "brand.context",
+    "brand.assets",
+    "brand.contract",
+    "brand.usage"
+  ],
+  "capabilities": [
+    {
+      "id": "brand.get_context",
+      "risk": "read",
+      "permissions": [
+        "brand:read"
+      ]
+    },
+    {
+      "id": "brand.inspect",
+      "risk": "read",
+      "permissions": [
+        "brand:read",
+        "brand:assets:read"
+      ]
+    },
+    {
+      "id": "brand.assets.list",
+      "risk": "read",
+      "permissions": [
+        "brand:assets:read"
+      ]
+    },
+    {
+      "id": "brand.asset.inspect",
+      "risk": "read",
+      "permissions": [
+        "brand:assets:read"
+      ]
+    },
+    {
+      "id": "brand.usage.find",
+      "risk": "read",
+      "permissions": [
+        "brand:read",
+        "brand:assets:read"
+      ]
+    },
+    {
+      "id": "brand.contract.draft",
+      "risk": "read",
+      "permissions": [
+        "brand:read",
+        "brand:contract:read"
+      ]
+    },
+    {
+      "id": "brand.consistency.evaluate",
+      "risk": "read",
+      "permissions": [
+        "brand:read",
+        "brand:contract:read"
+      ]
+    },
+    {
+      "id": "brand.plan",
+      "risk": "read",
+      "permissions": [
+        "brand:read",
+        "brand:contract:read"
+      ]
+    }
+  ],
+  "permissions": {
+    "declared": [
+      "brand:assets:read",
+      "brand:contract:read",
+      "brand:read"
+    ]
+  },
+  "auth": {
+    "type": "oauth",
+    "connectionRequired": true,
+    "resource": "https://plugins.inneranimalmedia.com/mcp"
+  },
+  "health": {
+    "required": true,
+    "strategy": "mcp.tools_list"
+  },
+  "lifecycle": {
+    "states": [
+      "available",
+      "installed",
+      "needs_connection",
+      "connected",
+      "ready"
+    ]
+  },
+  "verification": {
+    "requiredChecks": [
+      "definition.manifest",
+      "package.resolve",
+      "installation.catalog",
+      "installation.account",
+      "authorization.valid",
+      "authorization.permissions",
+      "runtime.mcp_reachable",
+      "runtime.capabilities_discovered",
+      "runtime.tools_executable",
+      "health.probe",
+      "product.smoke",
+      "product.result_schema",
+      "product.render",
+      "persistence.round_trip",
+      "security.least_privilege",
+      "security.tenant_isolation",
+      "portability.fresh_account",
+      "portability.fresh_install"
+    ]
+  },
+  "release": {
+    "receiptRequired": true
+  }
+}
