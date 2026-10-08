@@ -244,3 +244,33 @@ The published /catalog/plugins response now includes machine-readable `tool_perm
 `read_only_scopes`, `oauth_scopes`, and `oauth_resource` from the real registered
 MCP tool catalog. Consumers must compare these against authenticated MCP tools/list
 metadata and never treat discovery as an OAuth grant.
+
+## ChatGPT developer installation (independent AgentSam OAuth pilot)
+
+For a private developer test, create a **custom MCP plugin** in ChatGPT and select
+OAuth authentication with the server's published discovery metadata. Do not
+provide an InnerAnimalMedia IAM URL or a manually copied access token.
+
+- AgentSam Brand MCP URL: `https://plugins.inneranimalmedia.com/mcp/brand`
+- AgentSam Campaign MCP URL: `https://plugins.inneranimalmedia.com/mcp/campaign`
+- Protected resource: `https://plugins.inneranimalmedia.com/mcp`
+- OAuth issuer: discovered from `/.well-known/oauth-protected-resource`; both
+  the authorization server and MCP runtime are hosted by this same Worker.
+
+ChatGPT can dynamically register a public OAuth client. The first person signs
+in or creates an AgentSam account and explicitly authorizes the displayed
+scopes; tool invocations require a matching bearer-token audience and tool
+scopes. Campaign drafts, rankings and plans are read/prepare; saving a campaign
+brief or concept requires the corresponding write permission.
+
+The independent issuer uses the existing `accounts` and `user_oauth_tokens`
+tables in the **agentsam** D1 binding. It does not use InnerAnimalMedia IAM or
+the InnerAnimalMedia business database. The signing key is a Cloudflare Worker
+**secret** named `OAUTH_SIGNING_SECRET`, not a plaintext Wrangler variable.
+
+**Pilot limitations:** email ownership verification, account recovery and
+revocation of already-issued short-lived access tokens require further
+production hardening. A plugin is not release-ready merely because OAuth
+discovery succeeds. Fresh-account live token issuance, denied write, permitted
+tool execution and persistence verification must be captured before broad
+public launch.

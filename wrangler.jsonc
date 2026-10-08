@@ -17,10 +17,6 @@
   "vars": {
     "SERVICE_NAME": "agentsam-plugin-mcp",
     "SERVICE_ENV": "production",
-    "SERVICE_VERSION": "0.2.2",
-    "AGENTSAM_PUBLIC_BASE_URL": "https://plugins.inneranimalmedia.com",
-    "AGENTSAM_PUBLIC_ISSUER": "https://inneranimalmedia.com",
-    "AGENTSAM_PUBLIC_AUDIENCE": "https://plugins.inneranimalmedia.com/mcp",
-    "AGENTSAM_PUBLIC_USERINFO_URL": "https://inneranimalmedia.com/api/oauth/userinfo"
+    "SERVICE_VERSION": "0.2.3"
   }
 }

@@ -1,19 +1,13 @@
 import type { Context } from "hono";
 import type { Env } from "../types";
 
-export const PUBLIC_SCOPES = [
-  "profile:read",
-  "brand:read",
-  "brand:assets:read",
-  "brand:contract:read",
-  "campaign:read",
-  "campaign:brief:write",
-  "campaign:concept:write"
-] as const;
+import { PUBLIC_TOOL_CATALOG } from "../mcp/catalog";
+
+export const PUBLIC_SCOPES = [...new Set(PUBLIC_TOOL_CATALOG.flatMap(t=>t.scopes))].sort();
 
 export async function oauthProtectedResourceRoute(c: Context<{ Bindings: Env }>) {
-  const base = (c.env.AGENTSAM_PUBLIC_BASE_URL || new URL(c.req.url).origin).replace(/\/$/, "");
-  const issuer = c.env.AGENTSAM_PUBLIC_ISSUER?.trim();
+  const base = new URL(c.req.url).origin;
+  const issuer = base;
 
   return c.json({
     resource: base + "/mcp",

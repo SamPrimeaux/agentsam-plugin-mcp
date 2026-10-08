@@ -2,11 +2,7 @@ import type { Context } from "hono";
 import type { Env } from "../types";
 
 export async function healthRoute(c: Context<{ Bindings: Env }>) {
-  const authConfigured = Boolean(
-    c.env.AGENTSAM_PUBLIC_ISSUER &&
-    c.env.AGENTSAM_PUBLIC_AUDIENCE &&
-    (c.env.AGENTSAM_PUBLIC_USERINFO_URL || c.env.AGENTSAM_PUBLIC_JWKS_URL)
-  );
+  const authConfigured = Boolean(c.env.OAUTH_SIGNING_SECRET && c.env.OAUTH_SIGNING_SECRET.length >= 48);
 
   return c.json({
     service: c.env.SERVICE_NAME || "agentsam-plugin-mcp",
@@ -19,7 +15,7 @@ export async function healthRoute(c: Context<{ Bindings: Env }>) {
     public_boundary: true,
     auth: {
       configured: authConfigured,
-      mode: "oauth-2.1-resource-server"
+      mode: "oauth-2.1-first-party-issuer-and-resource-server"
     },
     plugins: {
       brand: { endpoint: "/mcp/brand", exposed: true },

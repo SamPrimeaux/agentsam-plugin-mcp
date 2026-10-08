@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Env } from "./types";
 import { healthRoute } from "./routes/health";
 import { oauthProtectedResourceRoute } from "./routes/oauth-metadata";
+import { oauthMetadata,registerOAuthClient,authorizeOAuth,exchangeOAuthToken,issuerUserinfo,revokeOAuthToken } from "./auth/issuer";
 import { handleMcp } from "./mcp/transport";
 import { privacyRoute, supportRoute, termsRoute } from "./routes/legal";
 import { PUBLIC_PLUGIN_CATALOG, PUBLIC_PLUGIN_ICONS, PUBLIC_PUBLISHER_MARK_SVG } from "./generated/plugin-catalog";
@@ -65,6 +66,17 @@ app.get("/catalog/icons/:file", (c) => {
   });
 });
 app.get("/.well-known/oauth-protected-resource", oauthProtectedResourceRoute);
+app.get("/.well-known/oauth-protected-resource/mcp", oauthProtectedResourceRoute);
+app.get("/.well-known/oauth-protected-resource/mcp/brand", oauthProtectedResourceRoute);
+app.get("/.well-known/oauth-protected-resource/mcp/campaign", oauthProtectedResourceRoute);
+app.get("/.well-known/oauth-authorization-server", c => oauthMetadata(c.req.raw));
+app.post("/oauth/register", c => registerOAuthClient(c.req.raw,c.env));
+app.get("/oauth/authorize", c => authorizeOAuth(c.req.raw,c.env));
+app.post("/oauth/authorize", c => authorizeOAuth(c.req.raw,c.env));
+app.post("/oauth/token", c => exchangeOAuthToken(c.req.raw,c.env));
+app.post("/oauth/revoke", c => revokeOAuthToken(c.req.raw,c.env));
+app.get("/oauth/userinfo", c => issuerUserinfo(c.req.raw,c.env));
+
 app.get("/privacy", privacyRoute);
 app.get("/terms", termsRoute);
 app.get("/support", supportRoute);

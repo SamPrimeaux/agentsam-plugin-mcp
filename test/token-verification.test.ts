@@ -1,60 +1,40 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  PublicAuthError,
-  scopesFromPayload,
-  verifyPublicAccessToken
-} from "../src/auth/token";
+import { describe, expect, it } from "vitest";
+import { SignJWT } from "jose";
+import { PublicAuthError,scopesFromPayload,verifyPublicAccessToken } from "../src/auth/token";
 import type { Env } from "../src/types";
 
-const env = {
-  DB: {} as D1Database,
-  SERVICE_NAME: "agentsam-plugin-mcp",
-  SERVICE_ENV: "test",
-  AGENTSAM_PUBLIC_ISSUER: "https://inneranimalmedia.com",
-  AGENTSAM_PUBLIC_AUDIENCE: "https://plugins.inneranimalmedia.com/mcp",
-  AGENTSAM_PUBLIC_USERINFO_URL: "https://inneranimalmedia.com/api/oauth/userinfo"
-} satisfies Env;
-
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
-
-describe("opaque public OAuth token verification", () => {
-  it("accepts IAM userinfo only for the configured public audience", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
-      sub: "usr_123",
-      name: "Review User",
-      email: "review@example.com",
-      audience: env.AGENTSAM_PUBLIC_AUDIENCE,
-      client_id: "iam_dcr_chatgpt",
-      scopes: ["profile:read", "brand:read"]
-    }), { status: 200, headers: { "content-type": "application/json" } })));
-
-    const payload = await verifyPublicAccessToken(env, "mcp_oauth_demo");
-    expect(payload.sub).toBe("usr_123");
-    expect(payload.iss).toBe(env.AGENTSAM_PUBLIC_ISSUER);
-    expect(payload.aud).toBe(env.AGENTSAM_PUBLIC_AUDIENCE);
-    expect([...scopesFromPayload(payload)]).toEqual(["profile:read", "brand:read"]);
+const origin = "https://plugins.inneranimalmedia.com";
+const secret = "test-standalone-agent-sam-oauth-signing-key-long-enough-123456789";
+const request = new Request(origin+"/mcp");
+function envFor(status="active"): Env {
+  return {
+    DB: {prepare:()=>({bind:()=>({first:async()=>status==="missing"?null:{id:"au_test",status}})})} as any,
+    SERVICE_NAME:"agentsam-plugin-mcp",SERVICE_ENV:"test",OAUTH_SIGNING_SECRET:secret
+  };
+}
+async function token(audience=origin+"/mcp") {
+  return new SignJWT({scope:"profile:read brand:read",scp:["profile:read","brand:read"]})
+    .setProtectedHeader({alg:"HS256"})
+    .setIssuer(origin).setAudience(audience).setSubject("au_test")
+    .setIssuedAt().setExpirationTime("15m")
+    .sign(new TextEncoder().encode(secret));
+}
+describe("independent public OAuth verification",()=>{
+  it("accepts its own audience-bound token and scopes",async()=>{
+    const payload=await verifyPublicAccessToken(envFor(),await token(),request);
+    expect(payload.sub).toBe("au_test");
+    expect([...scopesFromPayload(payload)]).toEqual(["profile:read","brand:read"]);
   });
-
-  it("rejects a valid upstream token for the private operator resource", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
-      sub: "usr_123",
-      audience: "https://mcp.inneranimalmedia.com/mcp",
-      scopes: ["mcp:tools"]
-    }), { status: 200, headers: { "content-type": "application/json" } })));
-
-    await expect(verifyPublicAccessToken(env, "mcp_oauth_private"))
-      .rejects.toMatchObject({ code: "invalid_token_audience" });
+  it("rejects a token minted for a different MCP resource",async()=>{
+    await expect(verifyPublicAccessToken(envFor(),await token(origin+"/other"),request))
+      .rejects.toMatchObject({code:"invalid_token"} satisfies Partial<PublicAuthError>);
   });
-
-  it("fails closed when IAM rejects the bearer token", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(
-      JSON.stringify({ error: "invalid_token" }),
-      { status: 401, headers: { "content-type": "application/json" } }
-    )));
-
-    await expect(verifyPublicAccessToken(env, "bad"))
-      .rejects.toMatchObject({ code: "invalid_token" });
+  it("rejects suspended users",async()=>{
+    await expect(verifyPublicAccessToken(envFor("suspended"),await token(),request))
+      .rejects.toMatchObject({code:"invalid_token"});
+  });
+  it("fails closed without signing authority",async()=>{
+    await expect(verifyPublicAccessToken({...envFor(),OAUTH_SIGNING_SECRET:undefined},await token(),request))
+      .rejects.toMatchObject({code:"invalid_token"});
   });
 });
