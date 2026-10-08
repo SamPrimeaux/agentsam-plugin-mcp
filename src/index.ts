@@ -17,6 +17,11 @@ app.get("/catalog/plugins", (c) => c.json({
     const permissions = PUBLIC_TOOL_CATALOG.filter(tool => tool.plugin === plugin.plugin_key && plugin.tools.some(name => name === tool.id));
     return {
       ...plugin,
+      // Capability labels and counts are projections of executable tool definitions,
+      // not the independent promotional strings in plugin.json.
+      capabilities: permissions.map(tool => tool.title),
+      tool_count: permissions.length,
+      tools: permissions.map(tool => tool.id),
       oauth_scopes: [...new Set(permissions.flatMap(tool => tool.scopes))].sort(),
       read_only_scopes: [...new Set(permissions.filter(tool => tool.readOnlyHint).flatMap(tool => tool.scopes))].sort(),
       tool_permissions: permissions.map(tool => ({
