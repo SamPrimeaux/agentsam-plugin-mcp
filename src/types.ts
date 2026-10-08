@@ -1,6 +1,7 @@
 export interface Env {
   DB: D1Database;
   OAUTH_SIGNING_SECRET?: string;
+  STUDIO_HANDOFF_SECRET?: string;
   SERVICE_NAME: string;
   SERVICE_ENV: string;
   SERVICE_VERSION?: string;

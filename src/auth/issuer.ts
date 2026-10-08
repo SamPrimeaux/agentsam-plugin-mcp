@@ -37,6 +37,7 @@ const provider = {
   code:"agentsam_issuer_code",
   refresh:"agentsam_issuer_refresh",
   attempt:"agentsam_issuer_attempt",
+  studio:"agentsam_studio_handoff",
 };
 const baseFor = (request: Request) => new URL(request.url).origin;
 const audienceFor = (request: Request) => baseFor(request) + AUDIENCE_PATH;
@@ -68,6 +69,65 @@ async function consume(env: Env, kind: string, key: string, owner: string) {
     is_active=1 AND expires_at>unixepoch()`).bind(owner,kind,key).run();
   return Number(result.meta.changes || 0) === 1;
 }
+type StudioIdentity = {
+  user_id: string; display_name: string; email?: string;
+  client_id: string; redirect_uri: string; resource: string;
+  code_challenge: string; scope: string; state: string;
+};
+function secureEquals(a: string, b: string) {
+  const aa=encode.encode(a),bb=encode.encode(b);
+  if(aa.length!==bb.length)return false;
+  let difference=0;
+  for(let i=0;i<aa.length;i++)difference|=aa[i]^bb[i];
+  return difference===0;
+}
+function matchedStudioHandoff(meta:StudioIdentity, auth:NonNullable<Awaited<ReturnType<typeof validatedAuth>>>) {
+  return meta.client_id===auth.clientId && meta.redirect_uri===auth.redirect
+    && meta.resource===auth.resource && meta.code_challenge===auth.challenge
+    && meta.scope===auth.scopes.join(" ") && meta.state===auth.state;
+}
+async function studioHandoff(env:Env, hint:string, auth:NonNullable<Awaited<ReturnType<typeof validatedAuth>>>) {
+  if(!/^[A-Za-z0-9_-]{40,80}$/.test(hint))return null;
+  const record=await row(env,provider.studio,await digest(hint));
+  if(!record||Number(record.expires_at)<=now())return null;
+  const meta=JSON.parse(String(record.metadata_json||"{}")) as StudioIdentity;
+  if(!matchedStudioHandoff(meta,auth))return null;
+  return {record,meta};
+}
+/** Server-to-server handoff from authenticated Studio only. Never trust a browser's claimed identity. */
+export async function issueStudioHandoff(request:Request,env:Env) {
+  if(!env.STUDIO_HANDOFF_SECRET || env.STUDIO_HANDOFF_SECRET.length<48) return failure("studio_handoff_unavailable",503);
+  const presented=request.headers.get("x-agentsam-studio-handoff-secret")||"";
+  if(!secureEquals(presented,env.STUDIO_HANDOFF_SECRET))return failure("unauthorized",401);
+  const data:any=await request.json().catch(()=>null);
+  if(!data||typeof data!=="object"||Array.isArray(data)||
+     typeof data.user_id!=="string"||!/^au_[a-z0-9]{16,64}$/.test(data.user_id)||
+     typeof data.client_id!=="string"||typeof data.redirect_uri!=="string"||
+     typeof data.resource!=="string"||typeof data.code_challenge!=="string"||
+     typeof data.scope!=="string"||typeof data.state!=="string")return failure("invalid_handoff",400);
+  const userId=String(data.user_id);
+  const client=await clientFor(env,data.client_id);
+  const scopes=requestedScopes(data.scope);
+  const callback=new URL(data.redirect_uri);
+  if(!client||!client.redirect_uris?.includes(data.redirect_uri)||
+     !validRedirect(data.redirect_uri)||callback.protocol!=="https:"||
+     callback.pathname!=="/api/plugins/oauth/callback"||
+     data.resource!==audienceFor(request)||
+     !validScopes(scopes)||!/^[A-Za-z0-9_-]{43,128}$/.test(data.code_challenge)||
+     data.state.length<20||data.state.length>512)return failure("invalid_handoff",400);
+  const identity:StudioIdentity={
+    user_id:userId,
+    display_name:String(data.display_name||"AgentSam account").slice(0,100),
+    email:typeof data.email==="string"?String(data.email).slice(0,240):undefined,
+    client_id:data.client_id,redirect_uri:data.redirect_uri,
+    scope:scopes.join(" "),resource:data.resource,
+    state:data.state,code_challenge:data.code_challenge,
+  };
+  const handoff=randomToken();
+  await save(env,provider.studio,await digest(handoff),userId,identity,now()+540);
+  return Response.json({login_hint:handoff,expires_in:540},{headers:{"cache-control":"no-store"}});
+}
+
 async function hashedPassword(password: string, salt?: Uint8Array) {
   const currentSalt = salt || crypto.getRandomValues(new Uint8Array(24));
   const key = await crypto.subtle.importKey("raw",encode.encode(password),"PBKDF2",false,["deriveBits"]);
@@ -142,38 +202,86 @@ export async function registerOAuthClient(request: Request,env: Env) {
     grant_types:["authorization_code","refresh_token"],response_types:["code"]},
     {status:201,headers:{"cache-control":"no-store"}});
 }
-function consentHtml(auth: NonNullable<Awaited<ReturnType<typeof validatedAuth>>>, csrf: string, params: URLSearchParams, error="") {
-  const labels=new Map(PUBLIC_TOOL_CATALOG.flatMap(t=>t.scopes.map(scope=>[scope,{label:scope,description:t.description}] as const)));
-  const scopeMarkup=auth.scopes.map(scope=>{
-    const description=scope==="offline_access"?"Keep this connection active using refresh tokens.":(labels.get(scope)?.description||scope);
+function consentHtml(auth: NonNullable<Awaited<ReturnType<typeof validatedAuth>>>,
+  csrf:string, params:URLSearchParams, linked?:StudioIdentity, error="") {
+  const labels=new Map(PUBLIC_TOOL_CATALOG.flatMap(t=>t.scopes.map(scope=>[scope,t.description] as const)));
+  const scopes=auth.scopes.map(scope=>{
     const write=scope.includes(":write");
-    return `<li><span class="perm ${write?"write":"read"}">${write?"Write":"Read"}</span> <strong>${htmlEscape(scope)}</strong><small>${htmlEscape(description)}</small></li>`;
+    const explanation=scope==="offline_access"
+      ?"Keeps the connection active without asking you to sign in again."
+      :(labels.get(scope)||"Use this permission for approved plugin tools.");
+    return `<li class="scope"><span class="risk ${write?"write":"read"}">${write?"Write":"Read"}</span>
+      <span><strong>${htmlEscape(scope)}</strong><small>${htmlEscape(explanation)}</small></span></li>`;
   }).join("");
-  const hidden=[...params.entries()].filter(([k])=>["client_id","redirect_uri","response_type","resource","scope","state","code_challenge","code_challenge_method"].includes(k))
-    .map(([k,v])=>`<input type="hidden" name="${htmlEscape(k)}" value="${htmlEscape(v)}">`).join("");
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Authorize ${htmlEscape(auth.client.client_name)} · AgentSam</title><style>
-  *{box-sizing:border-box}body{margin:0;min-height:100vh;padding:24px;display:grid;place-items:center;background:#0b1020;color:#19202b;font:14px/1.55 system-ui,-apple-system,sans-serif}
-  main{width:min(100%,470px);background:#fff;border-radius:20px;padding:28px;box-shadow:0 18px 70px #0005}
-  h1{font-size:23px;line-height:1.25;margin:8px 0}p{color:#5b6574}label{display:block;margin:12px 0 5px;font-weight:600}input:not([type=hidden]){display:block;width:100%;border:1px solid #cbd2dd;border-radius:8px;padding:12px;font:inherit}
-  ul{list-style:none;padding:0}li{padding:10px;border:1px solid #e5e9f0;border-radius:9px;margin:7px 0}li small{display:block;color:#5d6878;margin-top:3px}
-  .perm{font-size:11px;border-radius:5px;padding:3px 5px;margin-right:5px}.write{background:#fff0dc;color:#975500}.read{background:#e8f2ff;color:#195bb7}
-  button{border:0;border-radius:9px;background:#5437d6;color:white;padding:12px 16px;font:inherit;font-weight:650;cursor:pointer}
-  .buttons{display:flex;gap:9px;margin-top:18px;flex-wrap:wrap}.cancel{background:#ebedf3;color:#1b2434}.muted{font-size:12px;color:#687284}
-  .error{color:#aa1a21;background:#ffebed;padding:9px;border-radius:8px}
-  </style></head><body><main><div class="muted">AGENTSAM · SECURE AUTHORIZATION</div>
-  <h1>${htmlEscape(auth.client.client_name)} wants to connect to AgentSam</h1>
-  <p>Sign in with an AgentSam account, then approve only the permissions below.</p>
-  <ul>${scopeMarkup}</ul>${error?`<p class="error">${htmlEscape(error)}</p>`:""}
-  <form action="/oauth/authorize" method="post">${hidden}
-  <input type="hidden" name="_csrf" value="${htmlEscape(csrf)}">
-  <label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" maxlength="240" required>
-  <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" minlength="12" required>
-  <div class="buttons"><button name="decision" value="signin">Sign in and authorize</button>
-  <button name="decision" value="signup">Create account and authorize</button>
-  <button name="decision" value="deny" class="cancel" formnovalidate>Cancel</button></div>
-  <p class="muted">Creating an account does not verify ownership of the entered email address. Review permissions before authorizing. You can disconnect this plugin later.</p></form>
-  </main></body></html>`;
+  const hidden=[...params.entries()].filter(([key])=>
+    ["client_id","redirect_uri","response_type","resource","scope","state",
+     "code_challenge","code_challenge_method","login_hint"].includes(key))
+    .map(([key,value])=>`<input type="hidden" name="${htmlEscape(key)}" value="${htmlEscape(value)}">`).join("");
+  const clientName=htmlEscape(auth.client.client_name||"Connected application");
+  const studio=Boolean(linked);
+  const label=auth.scopes.some(s=>s.startsWith("campaign:"))?"Campaign":
+              auth.scopes.some(s=>s.startsWith("brand:"))?"Brand":"Plugin";
+  const title=studio?`Connect AgentSam ${label}`:`Authorize AgentSam ${label}`;
+  const identity=studio?`<div class="identity"><span class="avatar">AS</span><span>
+      <strong>${htmlEscape(linked?.display_name||"AgentSam account")}</strong>
+      <small>Signed in to AgentSam Studio${linked?.email?` · ${htmlEscape(linked.email)}`:""}</small></span>
+      <span class="verified" aria-label="Verified Studio session">✓</span></div>`:`
+      <div class="auth-fields">
+      <label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" maxlength="240" required>
+      <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" minlength="12" required>
+      </div>`;
+  const actions=studio?`
+    <button class="primary" name="decision" value="studio_approve" type="submit">Authorize and return to Studio <span aria-hidden="true">↗</span></button>
+    <button class="secondary" name="decision" value="deny" type="submit" formnovalidate>Cancel</button>`:`
+    <button class="primary" name="decision" value="signin" type="submit">Sign in and authorize</button>
+    <button class="secondary" name="decision" value="signup" type="submit">Create AgentSam account</button>
+    <button class="quiet" name="decision" value="deny" type="submit" formnovalidate>Cancel</button>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="dark"><title>${htmlEscape(title)} · AgentSam</title><style>
+    *{box-sizing:border-box}html{background:#090a10}body{margin:0;min-height:100vh;color:#f4f2fb;
+    background:radial-gradient(ellipse 70% 55% at 50% 17%,#4e29a02b,transparent 76%),#090a10;
+    font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;display:grid;place-items:center;padding:32px 16px}
+    main{width:min(100%,480px);background:#14141b;border:1px solid #34313e;
+    box-shadow:0 24px 90px #0007;border-radius:22px;padding:30px}
+    .brand{display:flex;align-items:center;gap:10px;color:#c7c1d4;font-size:12px;letter-spacing:.025em;font-weight:600}
+    .mark{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;
+    background:#7b39e7;color:#fff;font-size:13px;font-weight:800}
+    h1{margin:24px 0 8px;font-size:25px;line-height:1.23;letter-spacing:-.6px}
+    .subtitle{color:#a9a5b7;margin:0 0 24px}.scope-head{display:flex;justify-content:space-between;
+    color:#eeeaf6;font-size:13px;font-weight:650;margin:22px 0 10px}.count{color:#9690a7;font-weight:500}
+    ul{list-style:none;padding:0;margin:0;display:grid;gap:8px}.scope{display:flex;gap:12px;align-items:start;
+    padding:12px;border:1px solid #302e39;border-radius:12px;background:#1a1923}
+    .scope strong{font-size:12px;font-weight:650;overflow-wrap:anywhere}.scope small{display:block;
+    font-size:11px;line-height:1.5;color:#a19cad;margin-top:3px}.risk{flex-shrink:0;margin-top:1px;
+    font-size:10px;border-radius:6px;padding:3px 7px;font-weight:700}
+    .risk.read{background:#17334b;color:#9cd2ff}.risk.write{background:#403014;color:#f4c36c}
+    .identity{display:flex;align-items:center;gap:12px;background:#211d30;border:1px solid #4f3a77;
+    padding:12px;border-radius:12px;margin-bottom:5px}.avatar{display:grid;place-items:center;width:37px;height:37px;
+    border-radius:11px;background:#7343d4;color:white;font-weight:800}.identity strong{display:block}
+    .identity small{display:block;color:#b9afcf;font-size:11px;margin-top:2px;overflow-wrap:anywhere}
+    .verified{margin-left:auto;color:#b89aff}.auth-fields{margin-top:10px}
+    label{display:block;font-size:12px;font-weight:600;margin:13px 0 6px}
+    input:not([type=hidden]){width:100%;padding:12px 13px;border:1px solid #464253;
+    background:#201e2a;color:white;border-radius:9px;font:inherit;outline-offset:2px}
+    input:focus-visible,button:focus-visible{outline:2px solid #c5aaff;outline-offset:2px}
+    button{cursor:pointer;border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:650}
+    .actions{display:grid;gap:9px;margin-top:21px}.primary{background:#8b46f4;color:white}
+    .primary:hover{background:#9b63f9}.secondary{background:#2b2934;color:#e5e2eb;
+    border:1px solid #46424e}.quiet{background:none;color:#a9a5b7}
+    .foot{font-size:11px;color:#858092;margin:20px 0 0}.error{padding:10px;border-radius:9px;
+    background:#3b1c28;color:#ffb9c7;margin:14px 0}a{color:#bca1ff}
+    @media(max-width:500px){body{padding:12px}main{border-radius:16px;padding:21px}h1{font-size:23px}}
+    </style></head><body><main><div class="brand"><span class="mark">AS</span> AGENTSAM <span aria-hidden="true">/</span> CONNECTIONS</div>
+    <h1>${title}</h1><p class="subtitle">${studio?"Your Studio session is verified. Review what you're sharing before continuing.":`Connect ${clientName} to your AgentSam workspace.`}</p>
+    ${identity}${error?`<div role="alert" class="error">${htmlEscape(error)}</div>`:""}
+    <div class="scope-head"><span>Requested permissions</span><span class="count">${auth.scopes.length} permissions</span></div>
+    <ul>${scopes}</ul><form action="/oauth/authorize" method="post">${hidden}
+    <input type="hidden" name="_csrf" value="${htmlEscape(csrf)}">
+    ${studio?"":`<p class="foot">For connections outside AgentSam Studio, sign in with an existing AgentSam plugin account.</p>`}
+    <div class="actions">${actions}</div></form>
+    <p class="foot">Connecting ${clientName}. Approval grants only the permissions shown above.
+    You can disconnect from Studio Settings at any time.</p></main></body></html>`;
 }
 function callbackUrl(auth: NonNullable<Awaited<ReturnType<typeof validatedAuth>>>, value: Record<string,string>) {
   const u=new URL(auth.redirect);
@@ -187,41 +295,61 @@ export async function authorizeOAuth(request: Request,env: Env) {
   const params=post?new URLSearchParams(await request.text()):new URL(request.url).searchParams;
   const auth=await validatedAuth(env,params,request);
   if(!auth) return failure("invalid_request");
+  const hint=params.get("login_hint");
+  const linked=hint?await studioHandoff(env,hint,auth):null;
+  if(hint&&!linked)return failure("studio_connection_expired",401);
   if (post) {
     const decision=params.get("decision");
     if(decision==="deny") return Response.redirect(callbackUrl(auth,{error:"access_denied"}),302);
     const cookie=/(?:^|;\s*)__Host-ags_csrf=([^;]+)/.exec(request.headers.get("cookie")||"")?.[1];
     if(!cookie || cookie!==params.get("_csrf") || !/^[A-Za-z0-9_-]{40,55}$/.test(cookie))
       return failure("invalid_csrf",403);
-    const email=String(params.get("email")||"").trim().toLowerCase();
-    const password=String(params.get("password")||"");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length>240 || password.length<12 || password.length>200)
-      return failure("invalid_credentials",401);
-    const attemptKey=await digest(email);
-    const attempt=await row(env,provider.attempt,attemptKey);
-    if (attempt && Number(attempt.expires_at)>now() &&
-        Number(JSON.parse(String(attempt.metadata_json||"{}")).count||0)>=6)
-      return failure("too_many_attempts",429);
-    let account:any=await env.DB.prepare("SELECT id,email,display_name,password_hash,status FROM accounts WHERE email=? LIMIT 1").bind(email).first();
-    if (decision==="signup") {
-      if (account) return failure("account_exists",409);
-      const accountId=id("au_");
-      try {
-        await env.DB.prepare("INSERT INTO accounts (id,type,email,display_name,password_hash,status) VALUES (?,'human',?,?,?,'active')")
-          .bind(accountId,email,email.split("@")[0],await hashedPassword(password)).run();
-      } catch(error) {
-        console.warn("oauth_signup_insert_failed",String(error instanceof Error ? error.message : error).slice(0,180));
-        return failure("account_creation_unavailable",503);
-      }
-      account={id:accountId,email,display_name:email.split("@")[0],status:"active"};
+    let account:any;
+    if (linked) {
+      if(decision!=="studio_approve")return failure("invalid_decision");
+      if(!await consume(env,provider.studio,await digest(hint!),String(linked.record.user_id)))
+        return failure("studio_connection_expired",401);
+      const identity=linked.meta;
+      // Mirror the *existing Studio account ID* for plugin workspace storage;
+      // no password, separate signup, or additional login is created.
+      await env.DB.prepare(`INSERT OR IGNORE INTO accounts
+        (id,type,email,display_name,password_hash,status)
+        VALUES (?,'human',NULL,?,NULL,'active')`)
+        .bind(identity.user_id,identity.display_name||"AgentSam account").run();
+      account=await env.DB.prepare("SELECT id,status FROM accounts WHERE id=? LIMIT 1")
+        .bind(identity.user_id).first();
+      if(!account||account.status!=="active")return failure("studio_identity_unavailable",403);
     } else {
-      if (!account || account.status!=="active" || !await verifyPassword(password,String(account.password_hash||""))) {
-        const count=(Number(JSON.parse(String(attempt?.metadata_json||"{}")).count||0))+1;
-        await save(env,provider.attempt,attemptKey,"issuer",{count},now()+900);
+      const email=String(params.get("email")||"").trim().toLowerCase();
+      const password=String(params.get("password")||"");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length>240 || password.length<12 || password.length>200)
         return failure("invalid_credentials",401);
+      const attemptKey=await digest(email);
+      const attempt=await row(env,provider.attempt,attemptKey);
+      if (attempt && Number(attempt.expires_at)>now() &&
+          Number(JSON.parse(String(attempt.metadata_json||"{}")).count||0)>=6)
+        return failure("too_many_attempts",429);
+      account=await env.DB.prepare("SELECT id,email,display_name,password_hash,status FROM accounts WHERE email=? LIMIT 1").bind(email).first();
+      if (decision==="signup") {
+        if (account) return failure("account_exists",409);
+        const accountId=id("au_");
+        try {
+          await env.DB.prepare("INSERT INTO accounts (id,type,email,display_name,password_hash,status) VALUES (?,'human',?,?,?,'active')")
+            .bind(accountId,email,email.split("@")[0],await hashedPassword(password)).run();
+        } catch(error) {
+          console.warn("oauth_signup_insert_failed",String(error instanceof Error ? error.message : error).slice(0,180));
+          return failure("account_creation_unavailable",503);
+        }
+        account={id:accountId,email,display_name:email.split("@")[0],status:"active"};
+      } else {
+        if (!account || account.status!=="active" || !await verifyPassword(password,String(account.password_hash||""))) {
+          const count=(Number(JSON.parse(String(attempt?.metadata_json||"{}")).count||0))+1;
+          await save(env,provider.attempt,attemptKey,"issuer",{count},now()+900);
+          return failure("invalid_credentials",401);
+        }
       }
+      await env.DB.prepare("UPDATE user_oauth_tokens SET is_active=0 WHERE provider=? AND account_identifier=?").bind(provider.attempt,attemptKey).run();
     }
-    await env.DB.prepare("UPDATE user_oauth_tokens SET is_active=0 WHERE provider=? AND account_identifier=?").bind(provider.attempt,attemptKey).run();
     const code=randomToken();
     await save(env,provider.code,await digest(code),String(account.id),{
       client_id:auth.clientId,redirect_uri:auth.redirect,resource:auth.resource,code_challenge:auth.challenge
@@ -229,7 +357,7 @@ export async function authorizeOAuth(request: Request,env: Env) {
     return Response.redirect(callbackUrl(auth,{code}),302);
   }
   const csrf=randomToken();
-  return new Response(consentHtml(auth,csrf,params),{headers:{
+  return new Response(consentHtml(auth,csrf,params,linked?.meta),{headers:{
     ...oauthHeaders,"content-type":"text/html; charset=utf-8",
     "set-cookie":`__Host-ags_csrf=${csrf}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=600`
   }});
