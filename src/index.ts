@@ -6,16 +6,26 @@ import { oauthMetadata,registerOAuthClient,authorizeOAuth,exchangeOAuthToken,iss
 import { handleMcp } from "./mcp/transport";
 import { privacyRoute, supportRoute, termsRoute } from "./routes/legal";
 import { PUBLIC_PLUGIN_CATALOG, PUBLIC_PLUGIN_ICONS, PUBLIC_PUBLISHER_MARK_SVG } from "./generated/plugin-catalog";
-import { PUBLIC_TOOL_CATALOG } from "./mcp/catalog";
+import { PUBLIC_PLUGIN_TOOL_PERMISSIONS } from "./mcp/catalog";
 
 const app = new Hono<{ Bindings: Env }>();
 
 app.get("/health", healthRoute);
 // Public, manifest-driven discovery only; installation and connection are host-owned.
+type GeneratedCatalogPlugin = {
+  plugin_key: string;
+  tools: readonly string[];
+  endpoint_url: string;
+  oauth_resource?: string;
+  identity_mode?: string;
+  remote_mcp?: boolean;
+};
+const catalogPlugins = PUBLIC_PLUGIN_CATALOG.plugins as unknown as readonly GeneratedCatalogPlugin[];
+
 app.get("/catalog/plugins", (c) => c.json({
   ...PUBLIC_PLUGIN_CATALOG,
-  plugins: PUBLIC_PLUGIN_CATALOG.plugins.map(plugin => {
-    const permissions = PUBLIC_TOOL_CATALOG.filter(tool => tool.plugin === plugin.plugin_key && plugin.tools.some(name => name === tool.id));
+  plugins: catalogPlugins.map(plugin => {
+    const permissions = PUBLIC_PLUGIN_TOOL_PERMISSIONS.filter(tool => tool.plugin === plugin.plugin_key && plugin.tools.some(name => name === tool.id));
     return {
       ...plugin,
       // Capability labels and counts are projections of executable tool definitions,
@@ -32,7 +42,9 @@ app.get("/catalog/plugins", (c) => c.json({
         read_only: tool.readOnlyHint,
         requires_approval: !tool.readOnlyHint,
       })),
-      oauth_resource: new URL("/mcp", plugin.endpoint_url).toString(),
+      oauth_resource: plugin.oauth_resource || new URL("/mcp", plugin.endpoint_url).toString(),
+      identity_mode: plugin.identity_mode || "studio_handoff",
+      remote_mcp: plugin.remote_mcp === true,
     };
   }),
 }, 200, {
@@ -69,6 +81,7 @@ app.get("/.well-known/oauth-protected-resource", oauthProtectedResourceRoute);
 app.get("/.well-known/oauth-protected-resource/mcp", oauthProtectedResourceRoute);
 app.get("/.well-known/oauth-protected-resource/mcp/brand", oauthProtectedResourceRoute);
 app.get("/.well-known/oauth-protected-resource/mcp/campaign", oauthProtectedResourceRoute);
+app.get("/.well-known/oauth-protected-resource/mcp/sales", oauthProtectedResourceRoute);
 app.get("/.well-known/oauth-authorization-server", c => oauthMetadata(c.req.raw));
 app.post("/oauth/register", c => registerOAuthClient(c.req.raw,c.env));
 app.post("/oauth/studio/handoff", c => issueStudioHandoff(c.req.raw,c.env));
@@ -85,6 +98,7 @@ app.get("/support", supportRoute);
 app.all("/mcp", (c) => handleMcp(c, "all"));
 app.all("/mcp/brand", (c) => handleMcp(c, "brand"));
 app.all("/mcp/campaign", (c) => handleMcp(c, "campaign"));
+app.all("/mcp/sales", (c) => handleMcp(c, "sales"));
 
 app.notFound((c) => c.json({ ok: false, error: "not_found" }, 404));
 

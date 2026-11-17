@@ -1,0 +1,92 @@
+{
+  "schema": "agentsam.plugin-product/v1",
+  "identity": {
+    "id": "agentsam-sales",
+    "version": "1.0.0",
+    "publisher": "Inner Animal Media"
+  },
+  "ownership": {
+    "domainPackage": "@inneranimalmedia/agentsam-sales",
+    "owns": [
+      "sales workflow definitions",
+      "source selection policy",
+      "evidence discipline and output contracts"
+    ],
+    "platformAuthorities": [
+      "identity.oauth",
+      "settings.plugin-installation",
+      "plugin-runtime.mcp",
+      "workspace.connections.read",
+      "plugin-runtime.health",
+      "plugin-runtime.approvals"
+    ]
+  },
+  "resources": [
+    "sales.context",
+    "sales.workflow"
+  ],
+  "capabilities": [
+    {
+      "id": "sales.get_context",
+      "risk": "read",
+      "permissions": [
+        "sales:read"
+      ]
+    },
+    {
+      "id": "sales.get_workflow",
+      "risk": "read",
+      "permissions": [
+        "sales:read"
+      ]
+    }
+  ],
+  "permissions": {
+    "declared": [
+      "sales:read"
+    ]
+  },
+  "auth": {
+    "type": "oauth",
+    "connectionRequired": true,
+    "resource": "https://plugins.inneranimalmedia.com/mcp"
+  },
+  "health": {
+    "required": true,
+    "strategy": "mcp.tools_list"
+  },
+  "lifecycle": {
+    "states": [
+      "available",
+      "installed",
+      "needs_connection",
+      "connected",
+      "ready"
+    ]
+  },
+  "verification": {
+    "requiredChecks": [
+      "definition.manifest",
+      "package.resolve",
+      "installation.catalog",
+      "installation.account",
+      "authorization.valid",
+      "authorization.permissions",
+      "runtime.mcp_reachable",
+      "runtime.capabilities_discovered",
+      "runtime.tools_executable",
+      "health.probe",
+      "product.smoke",
+      "product.result_schema",
+      "product.render",
+      "persistence.round_trip",
+      "security.least_privilege",
+      "security.tenant_isolation",
+      "portability.fresh_account",
+      "portability.fresh_install"
+    ]
+  },
+  "release": {
+    "receiptRequired": true
+  }
+}

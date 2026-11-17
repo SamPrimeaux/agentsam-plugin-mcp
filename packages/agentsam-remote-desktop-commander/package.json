@@ -1,0 +1,7 @@
+{
+  "name": "@inneranimalmedia/agentsam-remote-desktop-commander",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Curated Remote Desktop Commander MCP permissions and approval policy."
+}

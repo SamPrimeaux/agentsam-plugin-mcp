@@ -1,0 +1,7 @@
+{
+  "name": "@inneranimalmedia/agentsam-sales",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Evidence-led sales workflow definitions for AgentSam."
+}

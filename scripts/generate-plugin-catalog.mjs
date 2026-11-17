@@ -32,8 +32,22 @@ for (const entry of entries) {
   if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
     throw new Error('catalog_endpoint_invalid:'+entry.name);
   }
-  // This catalog only advertises endpoints explicitly registered in THIS Worker.
-  if (!routes.includes('app.all("'+endpoint.pathname+'"')) throw new Error('catalog_route_unregistered:'+endpoint.pathname);
+  const iamExtension = manifest.extensions?.['com.inneranimalmedia'] || {};
+  const remoteMcp = iamExtension.remoteMcp === true;
+  if (remoteMcp) {
+    const trusted = entry.name === 'agentsam-remote-desktop-commander'
+      && endpoint.origin === 'https://mcp.desktopcommander.app'
+      && endpoint.pathname === '/mcp'
+      && iamExtension.oauthResource === 'https://mcp.desktopcommander.app'
+      && iamExtension.identityMode === 'oauth_state_bound';
+    if (!trusted) throw new Error('catalog_external_endpoint_untrusted:'+entry.name);
+  } else {
+    // First-party packages may only advertise a route implemented by this Worker.
+    if (endpoint.origin !== 'https://plugins.inneranimalmedia.com'
+      || !routes.includes('app.all("'+endpoint.pathname+'"')) {
+      throw new Error('catalog_route_unregistered:'+endpoint.pathname);
+    }
+  }
   if (manifest.name !== entry.name || !/^agentsam-[a-z0-9-]+$/.test(entry.name)) throw new Error('catalog_manifest_identity_invalid:'+entry.name);
   const i = manifest.extensions?.['com.openai']?.interface;
   if (!i || !i.displayName || !Array.isArray(i.capabilities)) throw new Error('catalog_interface_missing:'+entry.name);
@@ -46,6 +60,7 @@ for (const entry of entries) {
   const skillNames = fs.readdirSync(skillDir,{withFileTypes:true}).filter(e=>e.isDirectory() && fs.existsSync(path.join(skillDir,e.name,'SKILL.md'))).map(e=>e.name).sort();
   const rawPrompts = Array.isArray(i.defaultPrompt) ? i.defaultPrompt : [];
   if (rawPrompts.some(s=>typeof s !== 'string')) throw new Error('catalog_prompt_invalid:'+entry.name);
+  const assetOrigin = remoteMcp ? 'https://plugins.inneranimalmedia.com' : endpoint.origin;
   const iconRef = i.logo || i.composerIcon;
   const iconFile = typeof iconRef === 'string' && iconRef.startsWith('./assets/')
     ? path.resolve(base,iconRef) : '';
@@ -70,8 +85,11 @@ for (const entry of entries) {
     tool_count: toolIds.length,
     tools: toolIds,
     endpoint_url: endpoint.toString(),
-    icon_url: endpoint.origin+'/catalog/icons/'+manifest.name+'.png?v='+encodeURIComponent(manifest.version),
-    publisher_icon_url: endpoint.origin+'/catalog/icons/agentsam.svg',
+    icon_url: assetOrigin+'/catalog/icons/'+manifest.name+'.png?v='+encodeURIComponent(manifest.version),
+    publisher_icon_url: assetOrigin+'/catalog/icons/agentsam.svg',
+    oauth_resource: remoteMcp ? iamExtension.oauthResource : new URL('/mcp', endpoint).toString(),
+    identity_mode: remoteMcp ? iamExtension.identityMode : 'studio_handoff',
+    remote_mcp: remoteMcp,
     transport: 'streamable-http',
     auth_type: 'oauth',
     website_url: String(i.websiteURL || manifest.homepage || ''),
