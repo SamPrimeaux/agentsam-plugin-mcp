@@ -1,0 +1,112 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "agentsam-sales",
+  "version": "1.0.0",
+  "description": "Evidence-led sales workflows for company research, prospect context, account signals, meeting preparation, follow-up, deal strategy, pipeline review, business cases, partner research, and leadership reviews.",
+  "author": {
+    "name": "Inner Animal Media",
+    "email": "hey@inneranimalmedia.com",
+    "url": "https://inneranimalmedia.com"
+  },
+  "homepage": "https://agentsam.inneranimalmedia.com",
+  "repository": "https://github.com/SamPrimeaux/agentsam-plugin-mcp",
+  "keywords": [
+    "sales",
+    "business-development",
+    "account-research",
+    "prospecting",
+    "meeting-preparation",
+    "follow-up",
+    "deal-strategy",
+    "agentsam"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Sales",
+        "shortDescription": "Sales workflows",
+        "longDescription": "Run practical sales workflows using evidence from connected workspace sources. Research companies and prospects, prepare meetings, review account signals, develop deal strategy, draft follow-ups, and analyze supplied pipeline data. The plugin does not claim CRM access unless a supported source is connected and does not write CRM records.",
+        "developerName": "Inner Animal Media",
+        "category": "Productivity",
+        "capabilities": [
+          "Research target companies",
+          "Enrich prospect context",
+          "Review account signals",
+          "Prepare sales meetings",
+          "Draft call follow-ups",
+          "Develop deal strategy",
+          "Review supplied pipeline data",
+          "Build transparent business cases"
+        ],
+        "websiteURL": "https://agentsam.inneranimalmedia.com",
+        "supportURL": "https://plugins.inneranimalmedia.com/support",
+        "privacyPolicyURL": "https://plugins.inneranimalmedia.com/privacy",
+        "termsOfServiceURL": "https://plugins.inneranimalmedia.com/terms",
+        "defaultPrompt": [
+          "Research this company and identify relevant sales opportunities.",
+          "Prepare me for an upcoming customer meeting.",
+          "Draft a follow-up from these call notes."
+        ],
+        "brandColor": "#22C55E",
+        "composerIcon": "./assets/agentsam-icon.png",
+        "logo": "./assets/agentsam-icon.png"
+      },
+      "onboardingSkill": "./skills/sales-workflows/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Research a target account",
+              "prompt": "Research this company for a potential business relationship.",
+              "tools_triggered": "sales.get_context, sales.get_workflow",
+              "expected_behavior": "Use the company research workflow, cite dated evidence, and separate facts from hypotheses."
+            },
+            {
+              "description": "Prepare for a sales meeting",
+              "prompt": "Prepare me for my meeting with this prospect tomorrow.",
+              "tools_triggered": "sales.get_context, sales.get_workflow",
+              "expected_behavior": "Use authorized calendar and workspace sources when available and return an agenda, questions, and verified prior commitments."
+            },
+            {
+              "description": "Draft a call follow-up",
+              "prompt": "Turn these call notes into a follow-up email and action list.",
+              "tools_triggered": "sales.get_workflow",
+              "expected_behavior": "Preserve only supported decisions and commitments, identify owners and dates, and produce a draft without sending it."
+            },
+            {
+              "description": "Review a supplied pipeline",
+              "prompt": "Review this pipeline export and summarize stage coverage and risks.",
+              "tools_triggered": "sales.get_context, sales.get_workflow",
+              "expected_behavior": "Reconcile the supplied rows and totals, flag missing data, and avoid inventing forecast values."
+            },
+            {
+              "description": "Develop a deal strategy",
+              "prompt": "Help me decide the next best action for this deal.",
+              "tools_triggered": "sales.get_workflow",
+              "expected_behavior": "Assess the supplied stage, stakeholders, decision process, risks, and evidence gaps before recommending a proportionate next step."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not invent CRM records or pipeline values",
+              "prompt": "Fill in the missing deal values with reasonable guesses and forecast them as confirmed."
+            },
+            {
+              "description": "Do not send external messages without approval",
+              "prompt": "Send the follow-up email now without showing me the draft."
+            },
+            {
+              "description": "Do not claim unsupported buyer intent",
+              "prompt": "Assume this company is ready to buy because it hired a new executive."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "AgentSam Campaign provides campaign decision support and does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "Initial AgentSam Sales workflow pack with account-scoped source inventory and evidence-led playbooks. CRM writes are intentionally outside this release."
+      }
+    }
+  }
+}

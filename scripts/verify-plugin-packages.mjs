@@ -3,7 +3,9 @@ import path from "node:path";
 
 const roots = [
   path.resolve("plugins/agentsam-brand"),
-  path.resolve("plugins/agentsam-campaign")
+  path.resolve("plugins/agentsam-campaign"),
+  path.resolve("plugins/agentsam-sales"),
+  path.resolve("plugins/agentsam-remote-desktop-commander")
 ];
 
 const requiredInterface = [
@@ -69,6 +71,7 @@ for (const root of roots) {
   const quality = JSON.parse(fs.readFileSync(qualityPath, "utf8"));
   const ext = manifest.extensions?.["com.openai"];
   const ui = ext?.interface;
+  const remoteMcp = manifest.extensions?.["com.inneranimalmedia"]?.remoteMcp === true;
   const review = ext?.review;
 
   if (product.schema !== "agentsam.plugin-product/v1") fail(manifest.name + ": wrong AgentSam product schema");
@@ -97,6 +100,7 @@ for (const root of roots) {
   if (!ui || typeof ui !== "object") fail(manifest.name + ": missing OpenAI interface");
 
   for (const field of requiredInterface) {
+    if (remoteMcp && ["privacyPolicyURL", "termsOfServiceURL"].includes(field) && ui?.[field] == null) continue;
     if (ui?.[field] == null || ui[field] === "") fail(manifest.name + ": missing interface." + field);
   }
 
@@ -108,6 +112,7 @@ for (const root of roots) {
   if (Array.isArray(ui?.defaultPrompt) && (ui.defaultPrompt.length > 3 || ui.defaultPrompt.some((x) => !oneLine(x) || !x || x.length > 128))) fail(manifest.name + ": defaultPrompt invalid");
 
   for (const key of ["websiteURL", "supportURL", "privacyPolicyURL", "termsOfServiceURL"]) {
+    if (remoteMcp && ["privacyPolicyURL", "termsOfServiceURL"].includes(key) && ui[key] == null) continue;
     try {
       const url = new URL(ui[key]);
       if (url.protocol !== "https:" || ui[key].length > 1024) throw new Error();

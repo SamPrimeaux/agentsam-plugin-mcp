@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import app from '../src/index';
 import { PUBLIC_PLUGIN_CATALOG } from '../src/generated/plugin-catalog';
-import { PUBLIC_TOOL_CATALOG } from '../src/mcp/catalog';
+import { PUBLIC_PLUGIN_TOOL_PERMISSIONS, PUBLIC_TOOL_CATALOG } from '../src/mcp/catalog';
 
 describe('public plugin discovery', () => {
   it('serves the manifest icon assets with a strict allowlist', async () => {
@@ -30,9 +30,9 @@ describe('public plugin discovery', () => {
     const response = await app.request('/catalog/plugins');
     expect(response.status).toBe(200);
     expect(response.headers.get('access-control-allow-origin')).toBe('*');
-    const payload = await response.json() as {schema:string;plugins:Array<(typeof PUBLIC_PLUGIN_CATALOG.plugins)[number] & {tool_permissions:Array<{id:string;title:string;scopes:string[];read_only:boolean;requires_approval:boolean}>;oauth_resource:string;read_only_scopes:string[];oauth_scopes:string[]}>};
+    const payload = await response.json() as {schema:string;plugins:Array<(typeof PUBLIC_PLUGIN_CATALOG.plugins)[number] & {tool_permissions:Array<{id:string;title:string;scopes:string[];read_only:boolean;requires_approval:boolean}>;oauth_resource:string;identity_mode:string;remote_mcp:boolean;read_only_scopes:string[];oauth_scopes:string[]}>};
     expect(payload.schema).toBe('agentsam.plugin-catalog/v1');
-    expect(payload.plugins.map(p=>p.plugin_key)).toEqual(['agentsam-brand', 'agentsam-campaign']);
+    expect(payload.plugins.map(p=>p.plugin_key)).toEqual(['agentsam-brand', 'agentsam-campaign', 'agentsam-remote-desktop-commander', 'agentsam-sales']);
     for (const plugin of payload.plugins) {
       expect(plugin.endpoint_url).toMatch(/^https:\/\//);
       expect(plugin.auth_type).toBe('oauth');
@@ -44,7 +44,18 @@ describe('public plugin discovery', () => {
       expect(plugin.tool_permissions.length).toBe(plugin.tool_count);
       expect(plugin.capabilities).toEqual(plugin.tool_permissions.map(tool=>tool.title));
       expect(plugin.tools).toEqual(plugin.tool_permissions.map(tool=>tool.id));
-      expect(plugin.oauth_resource).toBe('https://plugins.inneranimalmedia.com/mcp');
+      if (plugin.plugin_key === 'agentsam-remote-desktop-commander') {
+        expect(plugin.endpoint_url).toBe('https://mcp.desktopcommander.app/mcp');
+        expect(plugin.oauth_resource).toBe('https://mcp.desktopcommander.app');
+        expect(plugin.identity_mode).toBe('oauth_state_bound');
+        expect(plugin.remote_mcp).toBe(true);
+        expect(plugin.tool_permissions.find(tool => tool.id === 'write_file')?.requires_approval).toBe(true);
+        expect(plugin.tool_permissions.find(tool => tool.id === 'read_file')?.requires_approval).toBe(false);
+      } else {
+        expect(plugin.oauth_resource).toBe('https://plugins.inneranimalmedia.com/mcp');
+        expect(plugin.identity_mode).toBe('studio_handoff');
+        expect(plugin.remote_mcp).toBe(false);
+      }
       expect(plugin.read_only_scopes.length).toBeGreaterThan(0);
       expect(plugin.oauth_scopes.length).toBeGreaterThanOrEqual(plugin.read_only_scopes.length);
       for (const tool of plugin.tool_permissions) {
@@ -53,7 +64,7 @@ describe('public plugin discovery', () => {
         expect(tool.requires_approval).toBe(!tool.read_only);
       }
       for (const id of plugin.tools) {
-        expect(PUBLIC_TOOL_CATALOG.some(tool=>tool.id===id && tool.plugin===plugin.plugin_key)).toBe(true);
+        expect(PUBLIC_PLUGIN_TOOL_PERMISSIONS.some(tool=>tool.id===id && tool.plugin===plugin.plugin_key)).toBe(true);
       }
     }
     expect(JSON.stringify(payload)).not.toMatch(/client_secret|private_key|break_glass|vault_master_key/i);

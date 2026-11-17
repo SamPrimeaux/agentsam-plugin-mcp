@@ -21,7 +21,11 @@ export interface PublicPrincipal {
 }
 
 export type ToolRisk = "read" | "prepare" | "write" | "publish";
-export type PublicPluginKey = "agentsam-brand" | "agentsam-campaign" | "agentsam-shared";
+export type PublicPluginKey = "agentsam-brand" | "agentsam-campaign" | "agentsam-sales" | "agentsam-remote-desktop-commander" | "agentsam-shared";
+
+export interface PublicPluginToolPermission {
+  id: string; plugin: PublicPluginKey; title: string; scopes: readonly string[]; readOnlyHint: boolean;
+}
 
 export interface PublicToolDefinition {
   id: string;

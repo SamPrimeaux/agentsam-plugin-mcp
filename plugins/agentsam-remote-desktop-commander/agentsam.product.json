@@ -1,0 +1,313 @@
+{
+  "schema": "agentsam.plugin-product/v1",
+  "identity": {
+    "id": "agentsam-remote-desktop-commander",
+    "version": "1.0.0",
+    "publisher": "Inner Animal Media"
+  },
+  "ownership": {
+    "domainPackage": "@inneranimalmedia/agentsam-remote-desktop-commander",
+    "owns": [
+      "curated provider endpoint and resource metadata",
+      "remote tool permission allowlist",
+      "read versus write approval mapping"
+    ],
+    "platformAuthorities": [
+      "identity.oauth",
+      "vault.credentials",
+      "settings.plugin-installation",
+      "plugin-runtime.mcp",
+      "plugin-runtime.approvals",
+      "plugin-runtime.health"
+    ]
+  },
+  "resources": [
+    "remote-desktop.devices",
+    "remote-desktop.files",
+    "remote-desktop.search",
+    "remote-desktop.processes"
+  ],
+  "capabilities": [
+    {
+      "id": "list_devices",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "who_am_i",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "get_tool_result",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "list_remote_tool_calls",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "shutdown",
+      "risk": "write",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "get_config",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "set_config_value",
+      "risk": "write",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "read_file",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "read_multiple_files",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "write_file",
+      "risk": "write",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "write_pdf",
+      "risk": "write",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "create_directory",
+      "risk": "write",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "list_directory",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "move_file",
+      "risk": "write",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "start_search",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "get_more_search_results",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "stop_search",
+      "risk": "write",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "list_searches",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "get_file_info",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "edit_block",
+      "risk": "write",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "start_process",
+      "risk": "write",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "read_process_output",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "interact_with_process",
+      "risk": "write",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "force_terminate",
+      "risk": "write",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "list_sessions",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "list_processes",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "kill_process",
+      "risk": "write",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "get_usage_stats",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    },
+    {
+      "id": "get_recent_tool_calls",
+      "risk": "read",
+      "permissions": [
+        "mcp:tools",
+        "desktop:auth"
+      ]
+    }
+  ],
+  "permissions": {
+    "declared": [
+      "mcp:tools",
+      "desktop:auth"
+    ]
+  },
+  "auth": {
+    "type": "oauth",
+    "connectionRequired": true,
+    "resource": "https://mcp.desktopcommander.app"
+  },
+  "health": {
+    "required": true,
+    "strategy": "mcp.tools_list"
+  },
+  "lifecycle": {
+    "states": [
+      "available",
+      "installed",
+      "needs_connection",
+      "connected",
+      "ready"
+    ]
+  },
+  "verification": {
+    "requiredChecks": [
+      "definition.manifest",
+      "package.resolve",
+      "installation.catalog",
+      "installation.account",
+      "authorization.valid",
+      "authorization.permissions",
+      "runtime.mcp_reachable",
+      "runtime.capabilities_discovered",
+      "runtime.tools_executable",
+      "health.probe",
+      "product.smoke",
+      "product.result_schema",
+      "product.render",
+      "persistence.round_trip",
+      "security.least_privilege",
+      "security.tenant_isolation",
+      "portability.fresh_account",
+      "portability.fresh_install"
+    ]
+  },
+  "release": {
+    "receiptRequired": true
+  }
+}

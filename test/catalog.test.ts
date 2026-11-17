@@ -8,6 +8,7 @@ describe("public MCP catalog", () => {
     expect([...plugins].sort()).toEqual([
       "agentsam-brand",
       "agentsam-campaign",
+      "agentsam-sales",
       "agentsam-shared"
     ]);
   });
