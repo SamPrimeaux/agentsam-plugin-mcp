@@ -5,9 +5,11 @@
     "moduleResolution": "Bundler",
     "lib": [
       "ES2022",
-      "WebWorker"
+      "WebWorker",
+      "WebWorker.Iterable"
     ],
     "types": [
+      "node",
       "./worker-configuration.d.ts"
     ],
     "strict": true,
